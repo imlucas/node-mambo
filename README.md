@@ -1,14 +1,14 @@
-# node-modelo
+# mambo
 
 Little wrapper for dynamo models
 
 
 ## Install
 
-     npm install node-modelo
+     npm install mambo
 
 ## Testing
 
-    git clone 
+    git clone
     npm install
     mocha

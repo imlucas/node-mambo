@@ -1,17 +1,20 @@
 {
   "author": "Lucas Hrabovsky <lucas@ex.fm>",
-  "name": "node-modelo",
+  "name": "mambo",
   "description": "Little wrapper for dynamo models",
   "version": "0.0.0",
-  "homepage": "http://github.com/exfm/node-modelo",
+  "homepage": "http://github.com/exfm/node-mambo",
   "repository": {
     "type": "git",
-    "url": "git://github.com/exfm/node-modelo.git"
+    "url": "git://github.com/exfm/node-mambo.git"
   },
   "scripts": {
     "test": "mocha"
   },
-  "dependencies": {},
+  "dependencies": {
+    "when": "git://github.com/exfm/when.git",
+    "dynamo": "git://github.com/exfm/dynamo.git"
+  },
   "devDependencies": {
     "mocha": "1.4.1",
     "chai": "1.2.0"
