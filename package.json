@@ -1,0 +1,23 @@
+{
+  "author": "Lucas Hrabovsky <lucas@ex.fm>",
+  "name": "node-modelo",
+  "description": "Little wrapper for dynamo models",
+  "version": "0.0.0",
+  "homepage": "http://github.com/exfm/node-modelo",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/exfm/node-modelo.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "mocha": "1.4.1",
+    "chai": "1.2.0"
+  },
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
