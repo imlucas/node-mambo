@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "when": "git://github.com/exfm/when.git",
-    "dynamo": "git://github.com/exfm/dynamo.git"
+    "dynamo": "git://github.com/exfm/dynamo.git",
+    "sequence": "2.2.1"
   },
   "devDependencies": {
     "mocha": "1.4.1",
