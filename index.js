@@ -26,26 +26,32 @@ Model.prototype.connect = function(key, secret, prefix, region){
     this.db.port = 8080;
 
     this.tableData.forEach(function(table){
-        var tableName = (this.prefix || '') + table.table;
+        var schema = {},
+            typeMap = {
+                'N': Number,
+                'Number': Number,
+                'NS': [Number],
+                'NumberSet': [Number],
+                'S': String,
+                'String': String,
+                'SS': [String],
+                'StringSet': [String]
+            },
+            tableName = (this.prefix || '') + table.table;
+
         this.tables[table.alias] = this.db.get(tableName);
         this.tables[table.alias].name = this.tables[table.alias].TableName;
-        this.tables[table.alias].girth = table.girth;
+        this.tables[table.alias].girth = {
+            'read': table.read,
+            'write': table.write
+        };
 
-        Object.keys(table.schema).forEach(function(k){
-            if(table.schema[k] === "Number" || table.schema[k] === "N"){
-                table.schema[k] = Number;
-            }
-            if(table.schema[k] === "String" || table.schema[k] === "S"){
-                table.schema[k] = String;
-            }
-            if(table.schema[k] === "StringSet" || table.schema[k] === "SS"){
-                table.schema[k] = [String];
-            }
-            if(table.schema[k] === "NumberSet" || table.schema[k] === "NS"){
-                table.schema[k] = [Number];
-            }
-        });
-        this.tables[table.alias].schema = table.schema;
+        // Parse table hash and range names and types defined in package.json
+        schema[table.hashName] = typeMap[table[table.hashType]];
+        if (table.rangeName){
+            schema[table.rangeName] = typeMap[table[table.rangeType]];
+        }
+        this.tables[table.alias].schema = schema;
 
         this.girths[table.alias] = table.girth;
     }.bind(this));
