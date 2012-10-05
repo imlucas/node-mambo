@@ -47,10 +47,11 @@ Model.prototype.connect = function(key, secret, prefix, region){
         };
 
         // Parse table hash and range names and types defined in package.json
-        schema[table.hashName] = typeMap[table[table.hashType]];
+        schema[table.hashName] = typeMap[table.hashType];
         if (table.rangeName){
-            schema[table.rangeName] = typeMap[table[table.rangeType]];
+            schema[table.rangeName] = typeMap[table.rangeType];
         }
+
         this.tables[table.alias].schema = schema;
 
         this.girths[table.alias] = table.girth;
