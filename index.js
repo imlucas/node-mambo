@@ -17,13 +17,34 @@ Model.prototype.connect = function(key, secret, prefix, region){
     this.prefix = prefix;
     this.region = region;
 
-    this.client = dynamo.createClient();
-    this.client.useSession = false;
-    // Uncomment to use DynamoDB
-    this.db = this.client.get(this.region || 'us-east-1');
+    if(process.env.ENVIRONMENT === "production"){
+        // Connect to DynamoDB
+        console.log("Connecting to DynamoDB");
+        this.client = dynamo.createClient({
+            'accessKeyId': key,
+            'secretAccessKey': secret
+        });
+        this.client.useSession = false;
 
-    this.db.host = 'localhost';
-    this.db.port = 8080;
+        this.db = this.client.get(this.region || 'us-east-1');
+
+    } else if(process.env.TESTING){
+        this.prefix = "TEST";
+
+
+
+
+    } else {
+        // Connect to Magneto
+        console.log("Connecting to Magneto");
+        this.client = dynamo.createClient();
+        this.client.useSession = false;
+
+        this.db = this.client.get(this.region || 'us-east-1');
+
+        this.db.host = 'localhost';
+        this.db.port = 8080;
+    }
 
     this.tableData.forEach(function(table){
         var schema = {},
@@ -54,7 +75,10 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
         this.tables[table.alias].schema = schema;
 
-        this.girths[table.alias] = table.girth;
+        this.girths[table.alias] = {
+            'read': table.read,
+            'write': table.write
+        };
     }.bind(this));
 
     this.connected = true;
