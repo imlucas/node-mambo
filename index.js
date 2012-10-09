@@ -43,7 +43,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.db = this.client.get(this.region || 'us-east-1');
 
         this.db.host = 'localhost';
-        this.db.port = 8080;
+        this.db.port = 8081;
     }
 
     this.tableData.forEach(function(table){
