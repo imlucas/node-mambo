@@ -14,7 +14,8 @@
   "dependencies": {
     "when": "git://github.com/exfm/when.git",
     "dynamo": "git://github.com/exfm/dynamo.git",
-    "sequence": "2.2.1"
+    "sequence": "2.2.1",
+    "winston": "0.6.1"
   },
   "devDependencies": {
     "mocha": "1.4.1",

@@ -2,7 +2,18 @@
 
 var dynamo = require("dynamo"),
     when = require("when"),
-    sequence = require("sequence");
+    sequence = require("sequence"),
+    winston = require("winston");
+
+// Setup logger
+winston.loggers.add("app", {
+    console: {
+        'level': "silly",
+        'timestamp': true,
+        'colorize': true
+    }
+});
+var log = winston.loggers.get("app");
 
 
 // Models have many tables.
@@ -116,6 +127,7 @@ Model.prototype.ensureTable = function(alias){
 };
 
 Model.prototype.get = function(alias, key, value){
+    log.silly("mambo: get " + alias + key + value);
     var d = when.defer(),
         query = {};
 
