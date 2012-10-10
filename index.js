@@ -32,8 +32,6 @@ Model.prototype.connect = function(key, secret, prefix, region){
     if(process.env.NODE_ENV === "production"){
         // Connect to DynamoDB
         log.info("Connecting to DynamoDB");
-        log.silly("region: " + this.region || "it's empty");
-
         this.client = dynamo.createClient({
             'accessKeyId': key,
             'secretAccessKey': secret
@@ -41,7 +39,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.db = this.client.get(this.region || "us-east-1");
     } else {
         // Connect to Magneto
-        console.log("Connecting to Magneto");
+        log.info("Connecting to Magneto");
         this.client = dynamo.createClient();
         this.client.useSession = false;
 
@@ -131,8 +129,6 @@ Model.prototype.get = function(alias, key, value){
 
     query[key] = value;
     this.table(alias).get(query).fetch(function(err, data){
-        log.silly("mambo err: " + err);
-        log.silly("mambo data: " + data);
         if(!d.rejectIfError(err)){
             d.resolve(data);
         }
