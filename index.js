@@ -32,21 +32,13 @@ Model.prototype.connect = function(key, secret, prefix, region){
     if(process.env.NODE_ENV === "production"){
         // Connect to DynamoDB
         log.info("Connecting to DynamoDB");
-        log.silly("AWS key: " + key + " secret: " + secret);
+        log.silly("region: " + this.region || "it's empty");
 
         this.client = dynamo.createClient({
             'accessKeyId': key,
             'secretAccessKey': secret
         });
-
-        log.silly("dynamo client: " + this.client);
-
-        this.client.useSession = false;
-
         this.db = this.client.get(this.region || "us-east-1");
-
-        log.silly("DB: " + this.db);
-
     } else {
         // Connect to Magneto
         console.log("Connecting to Magneto");
