@@ -1,7 +1,8 @@
 "use strict";
-var dynamo = require('dynamo'),
-    when = require('when'),
-    sequence = require('sequence');
+
+var dynamo = require("dynamo"),
+    when = require("when"),
+    sequence = require("sequence");
 
 
 // Models have many tables.
@@ -17,7 +18,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
     this.prefix = prefix;
     this.region = region;
 
-    if(process.env.ENVIRONMENT === "production"){
+    if(process.env.NODE_ENV === "production"){
         // Connect to DynamoDB
         console.log("Connecting to DynamoDB");
         this.client = dynamo.createClient({
@@ -26,13 +27,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         });
         this.client.useSession = false;
 
-        this.db = this.client.get(this.region || 'us-east-1');
-
-    } else if(process.env.TESTING){
-        this.prefix = "TEST";
-
-
-
+        this.db = this.client.get(this.region || "us-east-1");
 
     } else {
         // Connect to Magneto
@@ -40,9 +35,9 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.client = dynamo.createClient();
         this.client.useSession = false;
 
-        this.db = this.client.get(this.region || 'us-east-1');
+        this.db = this.client.get(this.region || "us-east-1");
 
-        this.db.host = 'localhost';
+        this.db.host = "localhost";
         this.db.port = 8081;
     }
 
@@ -58,7 +53,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
                 'SS': [String],
                 'StringSet': [String]
             },
-            tableName = (this.prefix || '') + table.table;
+            tableName = (this.prefix || "") + table.table;
 
         this.tables[table.alias] = this.db.get(tableName);
         this.tables[table.alias].name = this.tables[table.alias].TableName;
