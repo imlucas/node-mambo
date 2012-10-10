@@ -127,7 +127,6 @@ Model.prototype.ensureTable = function(alias){
 };
 
 Model.prototype.get = function(alias, key, value){
-    log.silly("mambo: get " + alias + " " + key + " " + value);
     var d = when.defer(),
         query = {};
 
