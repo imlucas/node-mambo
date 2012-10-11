@@ -128,10 +128,20 @@ Model.prototype.get = function(alias, key, value){
         query = {};
 
     query[key] = value;
+
+
+    log.debug("alias:" + alias);
+    log.debug("key:" + key);
+    log.debug("value:" + value);
+    log.debug("query:" + query);
+
     this.table(alias).get(query).fetch(function(err, data){
+        console.log("err: " + err);
+        console.log("data: " + data);
         if(!d.rejectIfError(err)){
-            d.resolve(data);
+            return d.resolve(data);
         }
+        return d.resolve(err);
     });
     return d.promise;
 };
