@@ -37,6 +37,64 @@ Model.prototype.connect = function(key, secret, prefix, region){
             'secretAccessKey': secret
         });
         this.db = this.client.get(this.region || "us-east-1");
+
+        this.tableData.forEach(function(data){
+            var typeMap = {
+                    'N': Number,
+                    'Number': Number,
+                    'NS': [Number],
+                    'NumberSet': [Number],
+                    'S': String,
+                    'String': String,
+                    'SS': [String],
+                    'StringSet': [String]
+                },
+                tableName = (this.prefix || "") + data.table,
+                table = this.db.get(tableName),
+                schema = [],
+                localSchema = {};
+
+            if(!table){
+                schema.push([data.hashName, typeMap[data.hashType]]);
+                if(data.rangeName){
+                    schema.push([data.rangeName, typeMap[data.rangeType]]);
+                }
+                this.db.add({
+                    'name': tableName,
+                    'schema': schema,
+                    'throughput': {
+                        'read': 10,
+                        'write': 10
+                    }
+                }).save(function(err, t){
+                    this.tables[data.alias] = t;
+                });
+            }
+            else {
+                this.tables[data.alias] = table;
+            }
+
+            this.tables[data.alias].name = this.tables[data.alias].TableName;
+            this.tables[data.alias].girth = {
+                'read': data.read,
+                'write': data.write
+            };
+
+            // Parse table hash and range names and types defined in package.json
+            // @todo Is this actually needed?
+            localSchema[data.hashName] = typeMap[data.hashType];
+            if (data.rangeName){
+                localSchema[data.rangeName] = typeMap[data.rangeType];
+            }
+
+            this.tables[data.alias].schema = localSchema;
+
+            this.girths[data.alias] = {
+                'read': data.read,
+                'write': data.write
+            };
+        }.bind(this));
+
     } else {
         // Connect to Magneto
         log.info("Connecting to Magneto");
@@ -47,42 +105,42 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
         this.db.host = "localhost";
         this.db.port = 8081;
+
+        this.tableData.forEach(function(table){
+            var schema = {},
+                typeMap = {
+                    'N': Number,
+                    'Number': Number,
+                    'NS': [Number],
+                    'NumberSet': [Number],
+                    'S': String,
+                    'String': String,
+                    'SS': [String],
+                    'StringSet': [String]
+                },
+                tableName = (this.prefix || "") + table.table;
+
+            this.tables[table.alias] = this.db.get(tableName);
+            this.tables[table.alias].name = this.tables[table.alias].TableName;
+            this.tables[table.alias].girth = {
+                'read': table.read,
+                'write': table.write
+            };
+
+            // Parse table hash and range names and types defined in package.json
+            schema[table.hashName] = typeMap[table.hashType];
+            if (table.rangeName){
+                schema[table.rangeName] = typeMap[table.rangeType];
+            }
+
+            this.tables[table.alias].schema = schema;
+
+            this.girths[table.alias] = {
+                'read': table.read,
+                'write': table.write
+            };
+        }.bind(this));
     }
-
-    this.tableData.forEach(function(table){
-        var schema = {},
-            typeMap = {
-                'N': Number,
-                'Number': Number,
-                'NS': [Number],
-                'NumberSet': [Number],
-                'S': String,
-                'String': String,
-                'SS': [String],
-                'StringSet': [String]
-            },
-            tableName = (this.prefix || "") + table.table;
-
-        this.tables[table.alias] = this.db.get(tableName);
-        this.tables[table.alias].name = this.tables[table.alias].TableName;
-        this.tables[table.alias].girth = {
-            'read': table.read,
-            'write': table.write
-        };
-
-        // Parse table hash and range names and types defined in package.json
-        schema[table.hashName] = typeMap[table.hashType];
-        if (table.rangeName){
-            schema[table.rangeName] = typeMap[table.rangeType];
-        }
-
-        this.tables[table.alias].schema = schema;
-
-        this.girths[table.alias] = {
-            'read': table.read,
-            'write': table.write
-        };
-    }.bind(this));
 
     this.connected = true;
     return this;
@@ -128,16 +186,7 @@ Model.prototype.get = function(alias, key, value){
         query = {};
 
     query[key] = value;
-
-
-    log.debug("alias:" + alias);
-    log.debug("key:" + key);
-    log.debug("value:" + value);
-    log.debug("query:" + query);
-
     this.table(alias).get(query).fetch(function(err, data){
-        log.debug("err: " + err);
-        log.debug("data: " + data);
         if(!d.rejectIfError(err)){
             log.debug("!d.rejectIfError(err)");
             return d.resolve(data);
