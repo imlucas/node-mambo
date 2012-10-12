@@ -39,6 +39,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.db = this.client.get(this.region || "us-east-1");
 
         this.tableData.forEach(function(data){
+            log.debug("table data: " + data);
             var typeMap = {
                     'N': Number,
                     'Number': Number,
@@ -53,24 +54,32 @@ Model.prototype.connect = function(key, secret, prefix, region){
                 table = this.db.get(tableName),
                 schema = [],
                 localSchema = {};
+            log.debug("tableName: " + tableName);
+            log.debug("table: " + table);
+            log.debug("table stringify: " + JSON.stringify(table));
 
             if(!table){
                 schema.push([data.hashName, typeMap[data.hashType]]);
                 if(data.rangeName){
                     schema.push([data.rangeName, typeMap[data.rangeType]]);
                 }
+                log.debug("schema: " + schema);
+                log.debug("adding table...");
                 this.db.add({
                     'name': tableName,
                     'schema': schema,
                     'throughput': {
-                        'read': 10,
-                        'write': 10
+                        'read': data.read,
+                        'write': data.write
                     }
                 }).save(function(err, t){
+                    log.debug("saving: err: " + err);
+                    log.debug("saving: t: " + t);
                     this.tables[data.alias] = t;
                 });
             }
             else {
+                log.debug("table already exists");
                 this.tables[data.alias] = table;
             }
 
