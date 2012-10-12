@@ -25,42 +25,13 @@ function Model(tableData){
     this.tableData = tableData;
 }
 
-Model.prototype.createTable = function(tablePostData, attempt){
-    // Create a table in DynamoDB. Backoff and retry if ThrottlingException.
-    var d = when.defer();
-    var anAttempt = function(tablePostData, attempt){
-        sequence(this).then(function(next){
-            if(!attempt){
-                attempt = 1;
-            }
-            setTimeout(this.db.createTable, attempt * 100, [tablePostData, next]);
-        }).then(function(next, err, table){
-            if(!d.rejectIfError(err)){
-                log.info(tablePostData.tableName + " created in DynamoDB: " + JSON.stringify(table));
-                return d.resolve(true);
-            }
-            if(err.name.indexOf("ThrottlingException") !== -1){
-                log.warning("Got ThrottlingException from AWS DynamoDB when creating" + tablePostData.TableName);
-                var maxRetries = 5;
-                if(attempt <= maxRetries){
-                    log.warning("Retry #" + attempt + "of " + maxRetries);
-                    return anAttempt(tablePostData, attempt + 1);
-                }
-                log.error("Retried creating " + tablePostData.tableName + " " + maxRetries + " times. Got error: " + err);
-                return d.resolve(false);
-            }
-            log.debug("Something unexpected happened when creating: " + tablePostData.TableName);
-            return d.resolve(false);
-        });
-    }.bind(this);
-    anAttempt(tablePostData, attempt);
-    return d.promise;
-};
-
 Model.prototype.ensureTable = function(tableData){
     log.debug("ensuring table: " + tableData.tableName);
     var d = when.defer();
     sequence(this).then(function(next){
+        // Delay to avoid dynamo ThrottlingException
+        setTimeout(next, 100);
+    }).then(function(next){
         // Does the table already exist in DynamoDB?
         log.debug("Does " + tableData.tableName + " already exist in DynamoDB?");
         this.db.describeTable({'TableName': tableData.tableName}, next);
@@ -89,6 +60,9 @@ Model.prototype.ensureTable = function(tableData){
         log.error("Error getting " + tableData.tableName + " description: " + err);
         return d.resolve(false);
     }).then(function(next){
+        // Delay to avoid dynamo ThrottlingException
+        setTimeout(next, 100);
+    }).then(function(next){
         // Create the keySchema data
         log.debug("Create the keySchema data");
         var keySchema = {
@@ -108,17 +82,21 @@ Model.prototype.ensureTable = function(tableData){
     }).then(function(next, keySchema){
         // Create the table in DynamoDB
         log.debug("Create " + tableData.tableName + " in DynamoDB");
-        var tablePostData = {
+        this.db.createTable({
             'TableName': tableData.tableName,
             'ProvisionedThroughput': {
                 'ReadCapacityUnits': tableData.read,
                 'WriteCapacityUnits': tableData.write
             },
             'KeySchema': keySchema
-        };
-        this.createTable(tablePostData).then(function(success){
-            return d.resolve(success);
-        });
+        }, next);
+    }).then(function(next, err, table){
+        log.debug("Finished creating " + tableData.tableName);
+        if(!d.rejectIfError(err)){
+            log.info(tableData.tableName + " created in DynamoDB: " + JSON.stringify(table));
+            return d.resolve(true);
+        }
+        log.debug("Something went wrong with : " + tableData.tableName + ": " + err);
     });
     return d.promise;
 };
