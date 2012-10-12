@@ -30,7 +30,8 @@ Model.prototype.ensureTable = function(tableData){
     var d = when.defer();
     sequence(this).then(function(next){
         // Delay to avoid dynamo ThrottlingException
-        setTimeout(next, 100);
+        log.info("delaying 500ms");
+        setTimeout(next, 500);
     }).then(function(next){
         // Does the table already exist in DynamoDB?
         log.debug("Does " + tableData.tableName + " already exist in DynamoDB?");
@@ -61,7 +62,8 @@ Model.prototype.ensureTable = function(tableData){
         return d.resolve(false);
     }).then(function(next){
         // Delay to avoid dynamo ThrottlingException
-        setTimeout(next, 100);
+        log.info("delaying 500ms");
+        setTimeout(next, 500);
     }).then(function(next){
         // Create the keySchema data
         log.debug("Create the keySchema data");
