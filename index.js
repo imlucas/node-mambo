@@ -25,6 +25,68 @@ function Model(tableData){
     this.tableData = tableData;
 }
 
+
+Model.prototype.ensureTable = function(tableData){
+    var d = when.defer();
+
+    sequence(this).then(function(next){
+        // Does the table already exist in DynamoDB?
+        this.db.describeTable({'TableName': tableData.tableName}, next);
+    }).then(function(next, err, description){
+        if(err){
+            return next(err);
+        }
+        else if(description.CreationDateTime !== 0){
+            // Table already exists
+            log.debug(tableData.tableName + " already exists");
+            return d.resolve(true);
+        }
+        else {
+            log.error("Problem getting table description: " + description);
+            return d.resolve(false);
+        }
+    }).then(function(next, err){
+        if(err.name.indexOf("ResourceNotFound") !== -1){
+            // Table doesn't exist yet, so create it.
+            return next();
+        }
+        log.error("Error getting table description: " + err);
+        return d.resolve(false);
+    }).then(function(next){
+        // Create the keySchema data
+        var keySchema = {
+            'HashKeyElement': {
+                'AttributeName': tableData.hashName,
+                'AttributeType': tableData.hashType
+            }
+        };
+        if(tableData.rangeName){
+            keySchema.RangeKeyElement = {
+                'AttributeName': tableData.rangeName,
+                'AttributeType': tableData.rangeType
+            };
+        }
+        next(keySchema);
+    }).then(function(next, keySchema){
+        // Create the table in DynamoDB
+        this.db.createTable({
+            'TableName': tableData.tableName,
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': tableData.read,
+                'WriteCapacityUnits': tableData.write
+            },
+            'KeySchema': keySchema,
+        }, next);
+    }).then(function(next, err, table){
+        if(!d.rejectIfError(err)){
+            log.info("Table created in DynamoDB: " + JSON.stringify(table));
+            return d.resolve(true);
+        }
+    });
+    return d.promise;
+};
+
+
 Model.prototype.connect = function(key, secret, prefix, region){
     this.prefix = prefix;
     this.region = region;
@@ -38,70 +100,50 @@ Model.prototype.connect = function(key, secret, prefix, region){
         });
         this.db = this.client.get(this.region || "us-east-1");
 
-        this.tableData.forEach(function(data){
-            log.debug("table data: " + data);
-            var typeMap = {
-                    'N': Number,
-                    'Number': Number,
-                    'NS': [Number],
-                    'NumberSet': [Number],
-                    'S': String,
-                    'String': String,
-                    'SS': [String],
-                    'StringSet': [String]
-                },
-                tableName = (this.prefix || "") + data.table,
-                table = this.db.get(tableName),
-                schema = [],
-                localSchema = {};
-            log.debug("tableName: " + tableName);
-            log.debug("table: " + table);
-            log.debug("table stringify: " + JSON.stringify(table));
+        this.tableData.forEach(function(tableData){
+            log.debug("table data: " + tableData);
+            var tableName = (this.prefix || "") + tableData.table;
+            tableData.tableName = tableName;
 
-            if(!table){
-                schema.push([data.hashName, typeMap[data.hashType]]);
-                if(data.rangeName){
-                    schema.push([data.rangeName, typeMap[data.rangeType]]);
-                }
-                log.debug("schema: " + schema);
-                log.debug("adding table...");
-                this.db.add({
-                    'name': tableName,
-                    'schema': schema,
-                    'throughput': {
-                        'read': data.read,
-                        'write': data.write
+            this.ensureTable(tableData).then(function(success){
+                if(success){
+                    this.tables[tableData.alias] = this.db.get(tableData.tableName);
+
+                    // @todo is the following necessary?
+                    this.tables[tableData.alias].name = this.tables[tableData.alias].TableName;
+                    this.tables[tableData.alias].girth = {
+                        'read': tableData.read,
+                        'write': tableData.write
+                    };
+
+                    // Parse table hash and range names and types defined in package.json
+                    var localSchema = {},
+                        typeMap = {
+                            'N': Number,
+                            'Number': Number,
+                            'NS': [Number],
+                            'NumberSet': [Number],
+                            'S': String,
+                            'String': String,
+                            'SS': [String],
+                            'StringSet': [String]
+                        };
+                    localSchema[tableData.hashName] = typeMap[tableData.hashType];
+                    if (tableData.rangeName){
+                        localSchema[tableData.rangeName] = typeMap[tableData.rangeType];
                     }
-                }).save(function(err, t){
-                    log.debug("saving: err: " + err);
-                    log.debug("saving: t: " + t);
-                    this.tables[data.alias] = t;
-                });
-            }
-            else {
-                log.debug("table already exists");
-                this.tables[data.alias] = table;
-            }
 
-            this.tables[data.alias].name = this.tables[data.alias].TableName;
-            this.tables[data.alias].girth = {
-                'read': data.read,
-                'write': data.write
-            };
+                    this.tables[tableData.alias].schema = localSchema;
 
-            // Parse table hash and range names and types defined in package.json
-            // @todo Is this actually needed?
-            localSchema[data.hashName] = typeMap[data.hashType];
-            if (data.rangeName){
-                localSchema[data.rangeName] = typeMap[data.rangeType];
-            }
-
-            this.tables[data.alias].schema = localSchema;
-
-            this.girths[data.alias] = {
-                'read': data.read,
-                'write': data.write
-            };
+                    this.girths[tableData.alias] = {
+                        'read': tableData.read,
+                        'write': tableData.write
+                    };
+                }
+                else {
+                    log.error(tableData.tableName + " was not created.");
+                }
+            });
         }.bind(this));
 
     } else {
@@ -161,11 +203,11 @@ Model.prototype.table = function(alias){
 
 Model.prototype.createAll = function(){
     var d = when.defer();
-    when.all(Object.keys(this.tables).map(this.ensureTable.bind(this)), d.resolve);
+    when.all(Object.keys(this.tables).map(this.ensureTableMagneto.bind(this)), d.resolve);
     return d.promise;
 };
 
-Model.prototype.ensureTable = function(alias){
+Model.prototype.ensureTableMagneto = function(alias){
     var d = when.defer();
     sequence(this).then(function(next){
         this.db.listTables({}, next);
