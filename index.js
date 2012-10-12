@@ -109,77 +109,83 @@ Model.prototype.ensureTable = function(tableData){
 };
 
 Model.prototype.ensureAllTables = function(status){
-    this.tableData.forEach(function(t){
-        var tableName = (this.prefix || "") + t.table;
+    when.all(this.tableData.map(function(t){
+        var d = when.defer(),
+            tableName = (this.prefix || "") + t.table;
         t.tableName = tableName;
 
         log.debug(t.tableName);
         log.debug("status for " + t.tableName + " " + status[t.tableName]);
 
         if(status[t.tableName] !== 'done'){
-
             sequence(this).then(function(next){
                 log.info("delaying 2000ms in outer loop");
                 setTimeout(next, 2000);
             }).then(function(next){
                 log.debug("timeout done " + t.tableName);
-                this.ensureTable(t).then(function(success){
-                    log.debug("ensureTable " + t.tableName);
-                    if(success){
-                        log.debug("success " + t.tableName);
-                        status[t.tableName] = 'done';
-                        log.debug("status[" + t.tableName + "]: " + status[t.tableName]);
-                        this.tables[t.alias] = this.db.get(t.tableName);
+                this.ensureTable(t).then(next);
+            }).then(function(next, success){
+                log.debug("ensureTable " + t.tableName);
+                if(success){
+                    next();
+                }
+                else {
+                    log.error(t.tableName + " was not created.");
+                    status[t.tableName] = 'failed';
+                    return d.resolve();
+                }
+            }).then(function(next){
+                log.debug("success " + t.tableName);
+                status[t.tableName] = 'done';
+                log.debug("status[" + t.tableName + "]: " + status[t.tableName]);
+                this.tables[t.alias] = this.db.get(t.tableName);
 
-                        // @todo is the following necessary?
-                        this.tables[t.alias].name = this.tables[t.alias].TableName;
-                        this.tables[t.alias].girth = {
-                            'read': t.read,
-                            'write': t.write
-                        };
+                // @todo is the following necessary?
+                this.tables[t.alias].name = this.tables[t.alias].TableName;
+                this.tables[t.alias].girth = {
+                    'read': t.read,
+                    'write': t.write
+                };
 
-                        // Parse table hash and range names and types defined in package.json
-                        var localSchema = {},
-                            typeMap = {
-                                'N': Number,
-                                'Number': Number,
-                                'NS': [Number],
-                                'NumberSet': [Number],
-                                'S': String,
-                                'String': String,
-                                'SS': [String],
-                                'StringSet': [String]
-                            };
-                        localSchema[t.hashName] = typeMap[t.hashType];
-                        if (t.rangeName){
-                            localSchema[t.rangeName] = typeMap[t.rangeType];
-                        }
+                // Parse table hash and range names and types defined in package.json
+                var localSchema = {},
+                    typeMap = {
+                        'N': Number,
+                        'Number': Number,
+                        'NS': [Number],
+                        'NumberSet': [Number],
+                        'S': String,
+                        'String': String,
+                        'SS': [String],
+                        'StringSet': [String]
+                    };
+                localSchema[t.hashName] = typeMap[t.hashType];
+                if (t.rangeName){
+                    localSchema[t.rangeName] = typeMap[t.rangeType];
+                }
 
-                        this.tables[t.alias].schema = localSchema;
+                this.tables[t.alias].schema = localSchema;
 
-                        this.girths[t.alias] = {
-                            'read': t.read,
-                            'write': t.write
-                        };
-                    }
-                    else {
-                        log.error(t.tableName + " was not created.");
-                        status[t.tableName] = 'failed';
-                    }
-                }.bind(this));
+                this.girths[t.alias] = {
+                    'read': t.read,
+                    'write': t.write
+                };
+                return d.resolve();
             });
         }
-    }.bind(this));
-    var tryAgain;
-    this.tableData.forEach(function(t){
-        if(status[t.tableName] !== 'done'){
-            tryAgain = true;
+        return d.promise;
+    }.bind(this)), function(){
+        var tryAgain = false;
+        this.tableData.forEach(function(t){
+            if(status[t.tableName] !== 'done'){
+                tryAgain = true;
+            }
+        });
+        if(tryAgain){
+            log.warn("Running ensureAllTables again with status: " + JSON.stringify(status));
+            this.ensureAllTables(status);
         }
     });
-    if(tryAgain){
-        log.warn("Running ensureAllTables again with status: " + JSON.stringify(status));
-        this.ensureAllTables(status);
-    }
 };
 
 Model.prototype.connect = function(key, secret, prefix, region){
