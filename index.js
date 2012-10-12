@@ -28,29 +28,31 @@ function Model(tableData){
 Model.prototype.createTable = function(tablePostData, attempt){
     // Create a table in DynamoDB. Backoff and retry if ThrottlingException.
     var d = when.defer();
-    sequence(this).then(function(next){
-        if(!attempt){
-            attempt = 1;
-        }
-        setTimeout(this.db.createTable, attempt * 100, [tablePostData, next]);
-    }).then(function(next, err, table){
-        if(!d.rejectIfError(err)){
-            log.info(tablePostData.tableName + " created in DynamoDB: " + JSON.stringify(table));
-            return d.resolve(true);
-        }
-        if(err.name.indexOf("ThrottlingException") !== -1){
-            log.warning("Got ThrottlingException from AWS DynamoDB when creating" + tablePostData.TableName);
-            var maxRetries = 5;
-            if(attempt <= maxRetries){
-                log.warning("Retry #" + attempt + "of " + maxRetries);
-                return this.createTable(tablePostData, attempt + 1);
+    var anAttempt = function(tablePostData, attempt){
+        sequence(this).then(function(next){
+            if(!attempt){
+                attempt = 1;
             }
-            log.error("Retried creating " + tablePostData.tableName + " " + maxRetries + " times. Got error: " + err);
+            setTimeout(this.db.createTable, attempt * 100, [tablePostData, next]);
+        }).then(function(next, err, table){
+            if(!d.rejectIfError(err)){
+                log.info(tablePostData.tableName + " created in DynamoDB: " + JSON.stringify(table));
+                return d.resolve(true);
+            }
+            if(err.name.indexOf("ThrottlingException") !== -1){
+                log.warning("Got ThrottlingException from AWS DynamoDB when creating" + tablePostData.TableName);
+                var maxRetries = 5;
+                if(attempt <= maxRetries){
+                    log.warning("Retry #" + attempt + "of " + maxRetries);
+                    return anAttempt(tablePostData, attempt + 1);
+                }
+                log.error("Retried creating " + tablePostData.tableName + " " + maxRetries + " times. Got error: " + err);
+                return d.resolve(false);
+            }
+            log.debug("Something unexpected happened when creating: " + tablePostData.TableName);
             return d.resolve(false);
-        }
-        log.debug("Something unexpected happened when creating: " + tablePostData.TableName);
-        return d.resolve(false);
-    });
+        });
+    }.bind(this);
     return d.promise;
 };
 
