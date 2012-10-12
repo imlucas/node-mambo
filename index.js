@@ -30,8 +30,8 @@ Model.prototype.ensureTable = function(tableData){
     var d = when.defer();
     sequence(this).then(function(next){
         // Delay to avoid dynamo ThrottlingException
-        log.info("delaying 500ms");
-        setTimeout(next, 500);
+        log.info("delaying 2000ms");
+        setTimeout(next, 2000);
     }).then(function(next){
         // Does the table already exist in DynamoDB?
         log.debug("Does " + tableData.tableName + " already exist in DynamoDB?");
@@ -62,8 +62,8 @@ Model.prototype.ensureTable = function(tableData){
         return d.resolve(false);
     }).then(function(next){
         // Delay to avoid dynamo ThrottlingException
-        log.info("delaying 500ms");
-        setTimeout(next, 500);
+        log.info("delaying 2000ms");
+        setTimeout(next, 2000);
     }).then(function(next){
         // Create the keySchema data
         log.debug("Create the keySchema data");
@@ -122,45 +122,50 @@ Model.prototype.connect = function(key, secret, prefix, region){
             var tableName = (this.prefix || "") + tableData.table;
             tableData.tableName = tableName;
 
-            this.ensureTable(tableData).then(function(success){
-                if(success){
-                    this.tables[tableData.alias] = this.db.get(tableData.tableName);
+            sequence(this).then(function(next){
+                log.info("delaying 2000ms in outer loop");
+                setTimeout(next, 2000);
+            }).then(function(next){
+                this.ensureTable(tableData).then(function(success){
+                    if(success){
+                        this.tables[tableData.alias] = this.db.get(tableData.tableName);
 
-                    // @todo is the following necessary?
-                    this.tables[tableData.alias].name = this.tables[tableData.alias].TableName;
-                    this.tables[tableData.alias].girth = {
-                        'read': tableData.read,
-                        'write': tableData.write
-                    };
-
-                    // Parse table hash and range names and types defined in package.json
-                    var localSchema = {},
-                        typeMap = {
-                            'N': Number,
-                            'Number': Number,
-                            'NS': [Number],
-                            'NumberSet': [Number],
-                            'S': String,
-                            'String': String,
-                            'SS': [String],
-                            'StringSet': [String]
+                        // @todo is the following necessary?
+                        this.tables[tableData.alias].name = this.tables[tableData.alias].TableName;
+                        this.tables[tableData.alias].girth = {
+                            'read': tableData.read,
+                            'write': tableData.write
                         };
-                    localSchema[tableData.hashName] = typeMap[tableData.hashType];
-                    if (tableData.rangeName){
-                        localSchema[tableData.rangeName] = typeMap[tableData.rangeType];
+
+                        // Parse table hash and range names and types defined in package.json
+                        var localSchema = {},
+                            typeMap = {
+                                'N': Number,
+                                'Number': Number,
+                                'NS': [Number],
+                                'NumberSet': [Number],
+                                'S': String,
+                                'String': String,
+                                'SS': [String],
+                                'StringSet': [String]
+                            };
+                        localSchema[tableData.hashName] = typeMap[tableData.hashType];
+                        if (tableData.rangeName){
+                            localSchema[tableData.rangeName] = typeMap[tableData.rangeType];
+                        }
+
+                        this.tables[tableData.alias].schema = localSchema;
+
+                        this.girths[tableData.alias] = {
+                            'read': tableData.read,
+                            'write': tableData.write
+                        };
                     }
-
-                    this.tables[tableData.alias].schema = localSchema;
-
-                    this.girths[tableData.alias] = {
-                        'read': tableData.read,
-                        'write': tableData.write
-                    };
-                }
-                else {
-                    log.error(tableData.tableName + " was not created.");
-                }
-            }.bind(this));
+                    else {
+                        log.error(tableData.tableName + " was not created.");
+                    }
+                }.bind(this));
+            });
         }.bind(this));
 
     } else {
