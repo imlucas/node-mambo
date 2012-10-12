@@ -28,7 +28,6 @@ function Model(tableData){
 
 Model.prototype.ensureTable = function(tableData){
     var d = when.defer();
-
     sequence(this).then(function(next){
         // Does the table already exist in DynamoDB?
         this.db.describeTable({'TableName': tableData.tableName}, next);
@@ -101,7 +100,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.db = this.client.get(this.region || "us-east-1");
 
         this.tableData.forEach(function(tableData){
-            log.debug("table data: " + tableData);
+            log.debug("table data: " + JSON.stringify(tableData));
             var tableName = (this.prefix || "") + tableData.table;
             tableData.tableName = tableName;
 
@@ -143,7 +142,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
                 else {
                     log.error(tableData.tableName + " was not created.");
                 }
-            });
+            }).bind(this);
         }.bind(this));
 
     } else {
