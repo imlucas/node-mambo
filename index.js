@@ -53,6 +53,7 @@ Model.prototype.createTable = function(tablePostData, attempt){
             return d.resolve(false);
         });
     }.bind(this);
+    anAttempt(tablePostData, attempt);
     return d.promise;
 };
 
