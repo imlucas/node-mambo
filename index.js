@@ -31,32 +31,31 @@ Model.prototype.ensureTable = function(tableData){
     var d = when.defer();
     sequence(this).then(function(next){
         // Does the table already exist in DynamoDB?
-        log.debug("Does the table already exist in DynamoDB?");
+        log.debug("Does " + tableData.tableName + " already exist in DynamoDB?");
         this.db.describeTable({'TableName': tableData.tableName}, next);
     }).then(function(next, err, description){
-        log.debug("2");
+        log.debug("Got error or description for: " + tableData.tableName);
         if(err){
-            log.debug("Got err: " + err);
+            log.debug("Got err for: " + tableData.tableName + ": " + err);
             return next(err);
         }
         else if(description.CreationDateTime !== 0){
             // Table already exists
-            log.debug("description.CreationDateTime !== 0");
             log.debug(tableData.tableName + " already exists");
             return d.resolve(true);
         }
         else {
-            log.error("Problem getting table description: " + description);
+            log.error("Problem getting " + tableData.tableName + " description: " + description);
             return d.resolve(false);
         }
     }).then(function(next, err){
-        log.debug("3");
+        log.debug("Got err (which is a good thing) for: " + tableData.tableName);
         if(err.name.indexOf("ResourceNotFound") !== -1){
-            log.debug("Table doesn't exist yet, so create it.");
+            log.debug(tableData.tableName + " doesn't exist yet, so create it.");
             // Table doesn't exist yet, so create it.
             return next();
         }
-        log.error("Error getting table description: " + err);
+        log.error("Error getting " + tableData.tableName + " description: " + err);
         return d.resolve(false);
     }).then(function(next){
         // Create the keySchema data
@@ -73,11 +72,11 @@ Model.prototype.ensureTable = function(tableData){
                 'AttributeType': tableData.rangeType
             };
         }
-        log.debug("keySchema: " + keySchema);
+        log.debug("keySchema: " + JSON.stringify(keySchema));
         next(keySchema);
     }).then(function(next, keySchema){
         // Create the table in DynamoDB
-        log.debug("Create the table in DynamoDB");
+        log.debug("Create " + tableData.tableName + " in DynamoDB");
         this.db.createTable({
             'TableName': tableData.tableName,
             'ProvisionedThroughput': {
@@ -87,12 +86,12 @@ Model.prototype.ensureTable = function(tableData){
             'KeySchema': keySchema
         }, next);
     }).then(function(next, err, table){
-        log.debug("Finished creating");
+        log.debug("Finished creating " + tableData.tableName);
         if(!d.rejectIfError(err)){
-            log.info("Table created in DynamoDB: " + JSON.stringify(table));
+            log.info(tableData.tableName + " created in DynamoDB: " + JSON.stringify(table));
             return d.resolve(true);
         }
-        log.debug("Something went wrong");
+        log.debug("Something went wrong with : " + tableData.tableName + ": " + err);
     });
     return d.promise;
 };
