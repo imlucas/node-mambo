@@ -27,16 +27,21 @@ function Model(tableData){
 
 
 Model.prototype.ensureTable = function(tableData){
+    log.debug("ensuring table: " + tableData.tableName);
     var d = when.defer();
     sequence(this).then(function(next){
         // Does the table already exist in DynamoDB?
+        log.debug("Does the table already exist in DynamoDB?");
         this.db.describeTable({'TableName': tableData.tableName}, next);
     }).then(function(next, err, description){
+        log.debug("2");
         if(err){
+            log.debug("Got err: " + err);
             return next(err);
         }
         else if(description.CreationDateTime !== 0){
             // Table already exists
+            log.debug("description.CreationDateTime !== 0");
             log.debug(tableData.tableName + " already exists");
             return d.resolve(true);
         }
@@ -45,7 +50,9 @@ Model.prototype.ensureTable = function(tableData){
             return d.resolve(false);
         }
     }).then(function(next, err){
+        log.debug("3");
         if(err.name.indexOf("ResourceNotFound") !== -1){
+            log.debug("Table doesn't exist yet, so create it.");
             // Table doesn't exist yet, so create it.
             return next();
         }
@@ -53,6 +60,7 @@ Model.prototype.ensureTable = function(tableData){
         return d.resolve(false);
     }).then(function(next){
         // Create the keySchema data
+        log.debug("Create the keySchema data");
         var keySchema = {
             'HashKeyElement': {
                 'AttributeName': tableData.hashName,
@@ -65,22 +73,26 @@ Model.prototype.ensureTable = function(tableData){
                 'AttributeType': tableData.rangeType
             };
         }
+        log.debug("keySchema: " + keySchema);
         next(keySchema);
     }).then(function(next, keySchema){
         // Create the table in DynamoDB
+        log.debug("Create the table in DynamoDB");
         this.db.createTable({
             'TableName': tableData.tableName,
             'ProvisionedThroughput': {
                 'ReadCapacityUnits': tableData.read,
                 'WriteCapacityUnits': tableData.write
             },
-            'KeySchema': keySchema,
+            'KeySchema': keySchema
         }, next);
     }).then(function(next, err, table){
+        log.debug("Finished creating");
         if(!d.rejectIfError(err)){
             log.info("Table created in DynamoDB: " + JSON.stringify(table));
             return d.resolve(true);
         }
+        log.debug("Something went wrong");
     });
     return d.promise;
 };
