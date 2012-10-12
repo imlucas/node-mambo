@@ -98,43 +98,36 @@ Model.prototype.ensureTable = function(tableData){
             log.info(tableData.tableName + " created in DynamoDB: " + JSON.stringify(table));
             return d.resolve(true);
         }
-        log.debug("Something went wrong with : " + tableData.tableName + ": " + err);
+        if(err.name.indexOf("ThrottlingException") !== -1){
+            log.warning("Got ThrottlingException from AWS DynamoDB when creating" + tableData.TableName);
+            this.gotThrottlingException[tableData.TableName] = true;
+            return d.resolve(false);
+        }
+        log.debug("Something unexpected happened when creating: " + tableData.TableName + ": " + err);
     });
     return d.promise;
 };
 
-
-Model.prototype.connect = function(key, secret, prefix, region){
-    this.prefix = prefix;
-    this.region = region;
-
-    if(process.env.NODE_ENV === "production"){
-        // Connect to DynamoDB
-        log.info("Connecting to DynamoDB");
-        this.client = dynamo.createClient({
-            'accessKeyId': key,
-            'secretAccessKey': secret
-        });
-        this.db = this.client.get(this.region || "us-east-1");
-
-        this.tableData.forEach(function(tableData){
-            log.debug("table data: " + JSON.stringify(tableData));
-            var tableName = (this.prefix || "") + tableData.table;
-            tableData.tableName = tableName;
-
+Model.prototype.ensureAllTables = function(status){
+    this.tableData.forEach(function(t){
+        log.debug("table data: " + JSON.stringify(t));
+        var tableName = (this.prefix || "") + t.table;
+        t.tableName = tableName;
+        if(status[tableName] !== 'done'){
             sequence(this).then(function(next){
                 log.info("delaying 2000ms in outer loop");
                 setTimeout(next, 2000);
             }).then(function(next){
-                this.ensureTable(tableData).then(function(success){
+                this.ensureTable(t).then(function(success){
                     if(success){
-                        this.tables[tableData.alias] = this.db.get(tableData.tableName);
+                        status[t.tableName] = 'done';
+                        this.tables[t.alias] = this.db.get(t.tableName);
 
                         // @todo is the following necessary?
-                        this.tables[tableData.alias].name = this.tables[tableData.alias].TableName;
-                        this.tables[tableData.alias].girth = {
-                            'read': tableData.read,
-                            'write': tableData.write
+                        this.tables[t.alias].name = this.tables[t.alias].TableName;
+                        this.tables[t.alias].girth = {
+                            'read': t.read,
+                            'write': t.write
                         };
 
                         // Parse table hash and range names and types defined in package.json
@@ -149,25 +142,51 @@ Model.prototype.connect = function(key, secret, prefix, region){
                                 'SS': [String],
                                 'StringSet': [String]
                             };
-                        localSchema[tableData.hashName] = typeMap[tableData.hashType];
-                        if (tableData.rangeName){
-                            localSchema[tableData.rangeName] = typeMap[tableData.rangeType];
+                        localSchema[t.hashName] = typeMap[t.hashType];
+                        if (t.rangeName){
+                            localSchema[t.rangeName] = typeMap[t.rangeType];
                         }
 
-                        this.tables[tableData.alias].schema = localSchema;
+                        this.tables[t.alias].schema = localSchema;
 
-                        this.girths[tableData.alias] = {
-                            'read': tableData.read,
-                            'write': tableData.write
+                        this.girths[t.alias] = {
+                            'read': t.read,
+                            'write': t.write
                         };
                     }
                     else {
-                        log.error(tableData.tableName + " was not created.");
+                        log.error(t.tableName + " was not created.");
                     }
                 }.bind(this));
             });
-        }.bind(this));
+        }
+    }.bind(this));
+    var tryAgain;
+    this.tableData.forEach(function(t){
+        if(status[t.tableName] !== 'done'){
+            tryAgain = true;
+        }
+    });
+    if(tryAgain){
+        log.warning("Running ensureAllTables again with status: " + JSON.stringify(status));
+        this.ensureAllTables(status);
+    }
+};
 
+Model.prototype.connect = function(key, secret, prefix, region){
+    this.prefix = prefix;
+    this.region = region;
+
+    if(process.env.NODE_ENV === "production"){
+        // Connect to DynamoDB
+        log.info("Connecting to DynamoDB");
+        this.client = dynamo.createClient({
+            'accessKeyId': key,
+            'secretAccessKey': secret
+        });
+        this.db = this.client.get(this.region || "us-east-1");
+
+        this.ensureAllTables({});
     } else {
         // Connect to Magneto
         log.info("Connecting to Magneto");
