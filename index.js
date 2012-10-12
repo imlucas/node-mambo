@@ -110,17 +110,25 @@ Model.prototype.ensureTable = function(tableData){
 
 Model.prototype.ensureAllTables = function(status){
     this.tableData.forEach(function(t){
-        log.debug("table data: " + JSON.stringify(t));
         var tableName = (this.prefix || "") + t.table;
         t.tableName = tableName;
-        if(status[tableName] !== 'done'){
+
+        log.debug(t.tableName);
+        log.debug("status for " + t.tableName + " " + status[t.tableName]);
+
+        if(status[t.tableName] !== 'done'){
+
             sequence(this).then(function(next){
                 log.info("delaying 2000ms in outer loop");
                 setTimeout(next, 2000);
             }).then(function(next){
+                log.debug("timeout done " + t.tableName);
                 this.ensureTable(t).then(function(success){
+                    log.debug("ensureTable " + t.tableName);
                     if(success){
+                        log.debug("success " + t.tableName);
                         status[t.tableName] = 'done';
+                        log.debug("status[" + t.tableName + "]: " + status[t.tableName]);
                         this.tables[t.alias] = this.db.get(t.tableName);
 
                         // @todo is the following necessary?
@@ -156,6 +164,7 @@ Model.prototype.ensureAllTables = function(status){
                     }
                     else {
                         log.error(t.tableName + " was not created.");
+                        status[t.tableName] = 'failed';
                     }
                 }.bind(this));
             });
