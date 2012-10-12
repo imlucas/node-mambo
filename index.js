@@ -26,20 +26,12 @@ function Model(tableData){
 }
 
 Model.prototype.ensureTable = function(tableData){
-    log.debug("ensuring table: " + tableData.tableName);
     var d = when.defer();
     sequence(this).then(function(next){
-        // Delay to avoid dynamo ThrottlingException
-        log.info("delaying 2000ms");
-        setTimeout(next, 2000);
-    }).then(function(next){
         // Does the table already exist in DynamoDB?
-        log.debug("Does " + tableData.tableName + " already exist in DynamoDB?");
         this.db.describeTable({'TableName': tableData.tableName}, next);
     }).then(function(next, err, description){
-        log.debug("Got error or description for: " + tableData.tableName);
         if(err){
-            log.debug("Got err for: " + tableData.tableName + ": " + err);
             return next(err);
         }
         else if(description.CreationDateTime !== 0){
@@ -52,7 +44,6 @@ Model.prototype.ensureTable = function(tableData){
             return d.resolve(false);
         }
     }).then(function(next, err){
-        log.debug("Got err (which is a good thing) for: " + tableData.tableName);
         if(err.name.indexOf("ResourceNotFound") !== -1){
             log.debug(tableData.tableName + " doesn't exist yet, so create it.");
             // Table doesn't exist yet, so create it.
@@ -61,12 +52,7 @@ Model.prototype.ensureTable = function(tableData){
         log.error("Error getting " + tableData.tableName + " description: " + err);
         return d.resolve(false);
     }).then(function(next){
-        // Delay to avoid dynamo ThrottlingException
-        log.info("delaying 2000ms");
-        setTimeout(next, 2000);
-    }).then(function(next){
         // Create the keySchema data
-        log.debug("Create the keySchema data");
         var keySchema = {
             'HashKeyElement': {
                 'AttributeName': tableData.hashName,
@@ -79,11 +65,9 @@ Model.prototype.ensureTable = function(tableData){
                 'AttributeType': tableData.rangeType
             };
         }
-        log.debug("keySchema: " + JSON.stringify(keySchema));
         next(keySchema);
     }).then(function(next, keySchema){
         // Create the table in DynamoDB
-        log.debug("Create " + tableData.tableName + " in DynamoDB");
         this.db.createTable({
             'TableName': tableData.tableName,
             'ProvisionedThroughput': {
@@ -93,17 +77,15 @@ Model.prototype.ensureTable = function(tableData){
             'KeySchema': keySchema
         }, next);
     }).then(function(next, err, table){
-        log.debug("Finished creating " + tableData.tableName);
         if(!d.rejectIfError(err)){
             log.info(tableData.tableName + " created in DynamoDB: " + JSON.stringify(table));
             return d.resolve(true);
         }
         if(err.name.indexOf("ThrottlingException") !== -1){
-            log.warning("Got ThrottlingException from AWS DynamoDB when creating" + tableData.TableName);
-            this.gotThrottlingException[tableData.TableName] = true;
+            log.warn("Got ThrottlingException from AWS DynamoDB when creating" + tableData.tableName);
             return d.resolve(false);
         }
-        log.debug("Something unexpected happened when creating: " + tableData.TableName + ": " + err);
+        log.debug("Something unexpected happened when creating: " + tableData.tableName + ": " + err);
     });
     return d.promise;
 };
@@ -114,19 +96,21 @@ Model.prototype.ensureAllTables = function(status){
             tableName = (this.prefix || "") + t.table;
         t.tableName = tableName;
 
-        log.debug(t.tableName);
         log.debug("status for " + t.tableName + " " + status[t.tableName]);
 
         if(status[t.tableName] !== 'done'){
             sequence(this).then(function(next){
-                log.info("delaying 2000ms in outer loop");
-                setTimeout(next, 2000);
-            }).then(function(next){
-                log.debug("timeout done " + t.tableName);
-                this.ensureTable(t).then(next);
+            //     log.info("delaying 2000ms in outer loop");
+            //     setTimeout(next, 2000);
+            // }).then(function(next){
+                this.ensureTable(t).then(function(success){
+                    console.log("Did ensureTable succeed for " + t.tableName + "?:" + success);
+                    next(success);
+                });
             }).then(function(next, success){
                 log.debug("ensureTable " + t.tableName);
                 if(success){
+                    log.debug(t.tableName + " succeeded");
                     next();
                 }
                 else {
@@ -135,7 +119,6 @@ Model.prototype.ensureAllTables = function(status){
                     return d.resolve();
                 }
             }).then(function(next){
-                log.debug("success " + t.tableName);
                 status[t.tableName] = 'done';
                 log.debug("status[" + t.tableName + "]: " + status[t.tableName]);
                 this.tables[t.alias] = this.db.get(t.tableName);
@@ -185,7 +168,10 @@ Model.prototype.ensureAllTables = function(status){
             log.warn("Running ensureAllTables again with status: " + JSON.stringify(status));
             this.ensureAllTables(status);
         }
-    });
+        else {
+            log.debug("Not running ensureAllTables again: " + JSON.stringify(status));
+        }
+    }.bind(this));
 };
 
 Model.prototype.connect = function(key, secret, prefix, region){
