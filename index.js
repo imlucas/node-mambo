@@ -168,7 +168,7 @@ Model.prototype.ensureAllTables = function(status){
         }
     });
     if(tryAgain){
-        log.warning("Running ensureAllTables again with status: " + JSON.stringify(status));
+        log.warn("Running ensureAllTables again with status: " + JSON.stringify(status));
         this.ensureAllTables(status);
     }
 };
