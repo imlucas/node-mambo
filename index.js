@@ -142,7 +142,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
                 else {
                     log.error(tableData.tableName + " was not created.");
                 }
-            }).bind(this);
+            }.bind(this));
         }.bind(this));
 
     } else {
