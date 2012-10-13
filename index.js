@@ -128,7 +128,6 @@ Model.prototype.get = function(alias, key, value){
     query[key] = value;
     this.table(alias).get(query).fetch(function(err, data){
         if(!d.rejectIfError(err)){
-            log.debug("!d.rejectIfError(err)");
             return d.resolve(data);
         }
         return d.resolve(err);
