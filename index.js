@@ -39,7 +39,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.db = this.client.get(this.region || "us-east-1");
     } else {
         // Connect to Magneto
-        log.info("Connecting to Magneto");
+        // log.info("Connecting to Magneto");
         this.client = dynamo.createClient();
         this.client.useSession = false;
         this.db = this.client.get(this.region || "us-east-1");
