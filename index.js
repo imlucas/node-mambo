@@ -44,7 +44,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         this.client.useSession = false;
         this.db = this.client.get(this.region || "us-east-1");
         this.db.host = "localhost";
-        this.db.port = 8081;
+        this.db.port = process.env.MAGNETO_PORT || 8081;
     }
 
     this.tableData.forEach(function(table){
