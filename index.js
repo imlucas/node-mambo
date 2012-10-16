@@ -3,7 +3,8 @@
 var dynamo = require("dynamo"),
     when = require("when"),
     sequence = require("sequence"),
-    winston = require("winston");
+    winston = require("winston"),
+    _ = require("underscore");
 
 // Setup logger
 winston.loggers.add("app", {
@@ -127,12 +128,98 @@ Model.prototype.get = function(alias, key, value){
 
     query[key] = value;
     this.table(alias).get(query).fetch(function(err, data){
-        if(!d.rejectIfError(err)){
+        if(err){
             return d.resolve(data);
         }
         return d.resolve(err);
     });
     return d.promise;
 };
+
+var accept = function(item){
+    // Returns true if item is not undefined, null, "", [], or {}.
+    if(item === false){return true;}
+    if(item === 0){return true;}
+    if(!item){return false;}
+    if((_.isObject(item)) && (_.isEmpty(item))){
+        return false;
+    }
+    return true;
+};
+
+
+Model.prototype.toDynamo = function(tableName, obj){
+    var dynamoObj = {'TableName': tableName, 'Item': {}};
+
+    Object.keys(obj).map(function(attr){
+        if(accept(obj[attr])){
+            var attrType = this.attributeSchema[tableName][attr],
+                value = obj[attr];
+
+            if(value == true){
+                value = 1;
+            }
+            if(value == false){
+                value = 0;
+            }
+            if(attrType === "N"){
+                value = value.toString();
+            }
+            if(attrType === "NS"){
+                var newValue = [];
+                value = value.forEach(function(item){
+                    newValue.push(item.toString);
+                });
+                value = newValue;
+            }
+            dynamoObj.Item[attr] = {};
+            dynamoObj.Item[attr][attrType] = value;
+        }
+    }.bind(this));
+    return dynamoObj;
+};
+
+Model.prototype.fromDynamo = function(dynamoObj){
+    var obj = {};
+
+    return obj;
+};
+
+Model.prototype.put = function(tableName, obj){
+    var d = when.defer();
+
+    this.db.putItem(obj, function(err, data){
+        if(err){
+            console.log("Error: " + err);
+            throw err;
+        }
+        else {
+            console.log("Created song: " + obj.Item.id.N);
+            return d.resolve(obj.Item.id.N);
+        }
+        return d.resolve(err);
+    });
+    return d.promise;
+};
+
+// @todo(jonathan) Make this work
+// Model.prototype.update = function(tableName, newObj){
+//     var d = when.defer(),
+//         dynamoObj;
+
+//     // @todo(jonathan) format newObj properly
+//     // http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_UpdateItem.html
+
+//     this.db.updateItem(
+//         dynamoObj,
+//         function(err, data){
+//             if(!err){
+//                 return d.resolve(data);
+//             }
+//             return d.resolve(err);
+//         }
+//     );
+//     return d.promise;
+// };
 
 module.exports = Model;
