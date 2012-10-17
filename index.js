@@ -122,13 +122,14 @@ Model.prototype.ensureTableMagneto = function(alias){
     return d.promise;
 };
 
+
 Model.prototype.get = function(alias, key, value){
     var d = when.defer(),
         query = {};
 
     query[key] = value;
     this.table(alias).get(query).fetch(function(err, data){
-        if(err){
+        if(!err){
             return d.resolve(data);
         }
         return d.resolve(err);
@@ -154,19 +155,20 @@ Model.prototype.toDynamo = function(tableName, obj){
     Object.keys(obj).map(function(attr){
         if(accept(obj[attr])){
             var attrType = this.attributeSchema[tableName][attr],
-                value = obj[attr];
+                value = obj[attr],
+                newValue;
 
-            if(value == true){
-                value = 1;
+            if(value === true){
+                value = "1";
             }
-            if(value == false){
-                value = 0;
+            if(value === false){
+                value = "0";
             }
             if(attrType === "N"){
                 value = value.toString();
             }
             if(attrType === "NS"){
-                var newValue = [];
+                newValue = [];
                 value = value.forEach(function(item){
                     newValue.push(item.toString);
                 });
