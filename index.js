@@ -64,6 +64,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
         this.tables[table.alias] = this.db.get(tableName);
         this.tables[table.alias].name = this.tables[table.alias].TableName;
+        this.tables[table.alias].hashType = table.hashType;
         this.tables[table.alias].girth = {
             'read': table.read,
             'write': table.write
@@ -128,11 +129,46 @@ Model.prototype.get = function(alias, key, value){
 
     query[key] = value;
     this.table(alias).get(query).fetch(function(err, data){
-        if(err){
+        if(!err){
             return d.resolve(data);
         }
         return d.resolve(err);
     });
+    return d.promise;
+};
+
+Model.prototype.multiGet = function(alias, hashValue, hashKeys){
+
+    var keys = [],
+        hashKey,
+        hashType = this.tables[alias].hashType,
+        requestItems = {
+            "RequestItems": {}
+        },
+        d = when.defer(),
+        tableName = this.tables[alias].name;
+
+    console.log(hashType);
+
+    hashKeys.forEach(function(item){
+        hashKey = {
+            "HashKeyElement": {}
+        };
+        hashKey.HashKeyElement[hashType] = item.toString();
+        keys.push(hashKey);
+    });
+
+    requestItems.RequestItems[this.tables[alias].name] = {
+        "Keys": keys
+    };
+
+    this.db.batchGetItem(requestItems,
+        function(err, data){
+            if(!err){
+                return d.resolve(data.Responses[tableName].Items);
+            }
+            return d.resolve(err);
+        });
     return d.promise;
 };
 
@@ -154,19 +190,20 @@ Model.prototype.toDynamo = function(tableName, obj){
     Object.keys(obj).map(function(attr){
         if(accept(obj[attr])){
             var attrType = this.attributeSchema[tableName][attr],
-                value = obj[attr];
+                value = obj[attr],
+                newValue;
 
             if(value == true){
                 value = 1;
             }
-            if(value == false){
+            if(value === false){
                 value = 0;
             }
             if(attrType === "N"){
                 value = value.toString();
             }
             if(attrType === "NS"){
-                var newValue = [];
+                newValue = [];
                 value = value.forEach(function(item){
                     newValue.push(item.toString);
                 });
