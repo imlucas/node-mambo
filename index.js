@@ -123,6 +123,7 @@ Model.prototype.ensureTableMagneto = function(alias){
     return d.promise;
 };
 
+
 Model.prototype.get = function(alias, key, value){
     var d = when.defer(),
         query = {};
@@ -193,11 +194,11 @@ Model.prototype.toDynamo = function(tableName, obj){
                 value = obj[attr],
                 newValue;
 
-            if(value == true){
-                value = 1;
+            if(value === true){
+                value = "1";
             }
             if(value === false){
-                value = 0;
+                value = "0";
             }
             if(attrType === "N"){
                 value = value.toString();
