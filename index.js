@@ -285,11 +285,6 @@ var accept = function(item){
     return true;
 };
 
-function convertType(item){
-    if(item === true || item === 'true'){return 1;}
-    if(item === false || item === 'false'){return 0;}
-}
-
 function sortResults(values, results, field){
     var sortedResults;
     values.forEach(function(value){
@@ -303,78 +298,143 @@ function sortResults(values, results, field){
     return sortedResults;
 }
 
-Model.prototype.toDynamo = function(tableName, obj){
-    var dynamoObj = {'TableName': tableName, 'Item': {}};
+Model.prototype.valueToDynamo = function(value, attrType){
+    var newValue;
+
+    if(value === true){
+        return "1";
+    }
+    if(value === false){
+        return "0";
+    }
+    if(attrType === "N"){
+        return value.toString();
+    }
+    if(attrType === "NS"){
+        newValue = [];
+        value.forEach(function(item){
+            newValue.push(item.toString);
+        });
+        return newValue;
+    }
+    return value;
+};
+
+Model.prototype.toDynamo = function(alias, obj){
+    var table = this.table(alias),
+        dynamoObj = {'TableName': table.name, 'Item': {}};
 
     Object.keys(obj).map(function(attr){
         if(accept(obj[attr])){
-            var attrType = this.attributeSchema[tableName][attr],
-                value = obj[attr],
-                newValue;
+            var attrType = table.attributeSchema[attr],
+                value = obj[attr];
 
-            if(value === true){
-                value = "1";
-            }
-            if(value === false){
-                value = "0";
-            }
-            if(attrType === "N"){
-                value = value.toString();
-            }
-            if(attrType === "NS"){
-                newValue = [];
-                value.forEach(function(item){
-                    newValue.push(item.toString);
-                });
-                value = newValue;
-            }
             dynamoObj.Item[attr] = {};
-            dynamoObj.Item[attr][attrType] = value;
+            dynamoObj.Item[attr][attrType] = this.valueToDynamo(value, attrType);
         }
     }.bind(this));
     return dynamoObj;
+};
+
+Model.prototype.valueFromDynamo = function(value, attrType){
+    var newValue;
+    if(attrType === "N"){
+        return parseInt(value, 10);
+    }
+    if(attrType === "NS"){
+        newValue = [];
+        value.forEach(function(n){
+            newValue.push(parseInt(n, 10));
+        });
+        return newValue;
+    }
+    // @todo Shit! Booleans are indistinguishable from numbers with values of 0 and 1.
+    return value;
 };
 
 Model.prototype.fromDynamo = function(alias, dynamoObj){
     var obj = {};
     Object.keys(dynamoObj).map(function(attr){
         var attrType = this.table(alias).attributeSchema[attr],
-            value = dynamoObj[attr][attrType],
-            newValue;
+            value = dynamoObj[attr][attrType];
 
-        if(attrType === "N"){
-            value = parseInt(value, 10);
-        }
-        if(attrType === "NS"){
-            newValue = [];
-            value.forEach(function(n){
-                newValue.push(parseInt(n, 10));
-            });
-            value = newValue;
-        }
-        // @todo Shit! Booleans are indistinguishable from numbers with values of 0 and 1.
-
-        obj[attr] = value;
+        obj[attr] = this.valueFromDynamo(value, attrType);
     }.bind(this));
     return obj;
 };
 
-Model.prototype.put = function(tableName, obj){
-    var d = when.defer();
+Model.prototype.put = function(alias, obj, expected, returnOldValues){
+    // http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_PutItem.html
 
-    this.db.putItem(obj, function(err, data){
-        if(err){
-            console.log("Error: " + err);
-            throw err;
-        }
-        else {
-            console.log("Created song: " + obj.Item.id.N);
-            return d.resolve(obj.Item.id.N);
+    // alias: The table alias name
+
+    // obj: The object to put in the table. This method will handle formatting
+    // the object and casting.
+    // Sample:
+    // {
+    //     "url":"http://thissongexistsforreallzz.com/song1.mp3",
+    //     "id":30326673248,
+    //     "urlMd5":"66496db3a1bbba45fb189030954e78d0",
+    //     "metadata_state":"pending",
+    //     "loved_count":0,
+    //     "listened":0,
+    //     "version":1,
+    //     "created":1350500174375
+    // }
+    //
+
+    // expected: See AWS docs for an explanation. This method handles casting
+    // and supplying the attribute types, so this object is somewhat simplified
+    // from what AWS accepts.
+    // Sample:
+    // {
+    //     'metadata_state': {'Value': 'pending', 'Exists': true},
+    //     'version': {'Value': 0, 'Exists': true}
+    // }
+
+    // returnValues: See AWS docs for an explanation.
+
+    var d = when.defer(),
+        table = this.table(alias),
+        request;
+
+    // Assemble the request data
+    request = this.toDynamo(alias, obj);
+    if(expected){
+        request.Expected = {};
+        Object.keys(expected).forEach(function(attr){
+            var attrType = table.attributeSchema[attr];
+            request.Expected[attr] = {};
+            request.Expected[attr].Exists = expected[attr].Exists;
+            request.Expected[attr].Value = {};
+
+            // Cast values to what dynamo expects
+            request.Expected[attr].Value[attrType] = this.valueToDynamo(
+                expected[attr].Value, attrType);
+        }.bind(this));
+    }
+    if(returnOldValues === true){
+        request.ReturnValues = "ALL_OLD";
+    }
+
+    console.log(arguments);
+    console.log("request: " + JSON.stringify(request));
+
+    // Make the request
+    this.db.putItem(request, function(err, data){
+        if(!err){
+            return d.resolve(obj);
         }
         return d.resolve(err);
     });
     return d.promise;
 };
+
+// @todo Consolidate into valueToDynamo/valueFromDynamo
+function convertType(item){
+    if(item === true || item === 'true'){return 1;}
+    if(item === false || item === 'false'){return 0;}
+}
 
 Model.prototype.update = function(req){
 
