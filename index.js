@@ -286,8 +286,8 @@ var accept = function(item){
 };
 
 function convertType(item){
-    if(item == true || item == 'true'){return 1;}
-    if(item == false || item == 'false'){return 0;}
+    if(item === true || item === 'true'){return 1;}
+    if(item === false || item === 'false'){return 0;}
 }
 
 function sortResults(values, results, field){
