@@ -182,6 +182,9 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
         console.log(err);
         console.log(data);
         if(!err){
+            if(data.Item === undefined){
+                data.Item = {};
+            }
             return d.resolve(this.fromDynamo(alias, data.Item));
         }
         return d.resolve(err);
@@ -416,9 +419,6 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     if(returnOldValues === true){
         request.ReturnValues = "ALL_OLD";
     }
-
-    console.log(arguments);
-    console.log("request: " + JSON.stringify(request));
 
     // Make the request
     this.db.putItem(request, function(err, data){
