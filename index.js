@@ -398,7 +398,7 @@ Model.prototype.update = function(req){
     //  'alias': 'song',
     //  'hash': 'blah',
     //  'range': 'blahblah',
-    //  'attributeUpdate': [{
+    //  'attributeUpdates': [{
     //      'attributeName': 'attribute_name'
     //      'newValue': 'new_value',
     //      'action': 'PUT'
@@ -452,7 +452,7 @@ Model.prototype.update = function(req){
                 'Action': attr.action || 'PUT'
             };
             attributeUpdate.Value[attrSchema[attr.attributeName]] = attr.newValue;
-            attributeUpdates[attr.attributeName] = attributeUpdate;
+            updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
         });
     }
     // Add expectedValues for conditional update
@@ -464,7 +464,7 @@ Model.prototype.update = function(req){
                 'Exists': attr.exists || 'true'
             };
             expectedAttribute.Value[attrSchema[attr.attributeName]] = attr.expectedValue;
-            expectedAttributes[attr.attributeName] = attributeUpdate;
+            updateRequest.Expected[attr.attributeName] = attributeUpdate;
         });
     }
 
@@ -472,16 +472,16 @@ Model.prototype.update = function(req){
     this.db.updateItem(updateRequest, function(err, data){
         if(!err){
             // translate the response from dynamo format to exfm format
-            req.forEach(function(tableData){
-                table = this.table(tableData.alias);
+            // req.forEach(function(tableData){
+            //     table = this.table(tableData.alias);
 
-                var items = data.Responses[table.name].Items;
-                items.forEach(function(dynamoObj){
-                    obj = this.fromDynamo(tableData.alias, dynamoObj);
-                    response.push(obj);
-                }.bind(this));
-            }.bind(this));
-            return d.resolve(response);
+            //     var items = data.Responses[table.name].Items;
+            //     items.forEach(function(dynamoObj){
+            //         obj = this.fromDynamo(tableData.alias, dynamoObj);
+            //         response.push(obj);
+            //     }.bind(this));
+            // }.bind(this));
+            return d.resolve(data);
         }
         return d.resolve(err);
     }.bind(this));
