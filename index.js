@@ -264,7 +264,14 @@ Model.prototype.batchGet = function(req){
             req.forEach(function(tableData){
                 table = this.table(tableData.alias);
 
-                var items = data.Responses[table.name].Items;
+                var items;
+                if (tableData.ordered){
+                    items = sortResults(tableData.hashes, data.Responses[table.name].Items, table.hashName, table.hashType);
+                }
+                else {
+                    items = data.Responses[table.name].Items;
+                }
+
                 items.forEach(function(dynamoObj){
                     obj = this.fromDynamo(tableData.alias, dynamoObj);
                     response.push(obj);
@@ -288,15 +295,21 @@ var accept = function(item){
     return true;
 };
 
-function sortResults(values, results, field){
+function convertType(item){
+    if(item === true || item === 'true'){return 1;}
+    else if(item === false || item === 'false'){return 0;}
+    else {return item;}
+}
+
+function sortResults(values, results, hashKey, type){
     var sortedResults;
+    console.log(values);
     values.forEach(function(value){
         results.forEach(function(object){
-            if (object[field] === value) {
+            if (object[hashKey][type] === value) {
                 sortedResults.push(object);
             }
         });
-
     });
     return sortedResults;
 }
