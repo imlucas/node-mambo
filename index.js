@@ -165,6 +165,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
         }
     };
     request.Key.HashKeyElement[table.hashType] = hash.toString();
+
     if(table.rangeName){
         request.Key.RangeKeyElement[table.rangeType] = range.toString();
     }
@@ -178,6 +179,8 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 
     // Make the request
     this.db.getItem(request, function(err, data){
+        console.log(err);
+        console.log(data);
         if(!err){
             return d.resolve(this.fromDynamo(alias, data.Item));
         }
@@ -387,5 +390,102 @@ Model.prototype.put = function(tableName, obj){
 //     );
 //     return d.promise;
 // };
+
+Model.prototype.update = function(req){
+
+    // usage:
+    // update({
+    //  'alias': 'song',
+    //  'hash': 'blah',
+    //  'range': 'blahblah',
+    //  'attributeUpdate': [{
+    //      'attributeName': 'attribute_name'
+    //      'newValue': 'new_value',
+    //      'action': 'PUT'
+    //    }]
+    //  'expectedValues': [{
+    //      'attributeName': 'attribute_name',
+    //      'expectedValue': 'current_value',
+    //      'exists': 'true' // defaults to true
+    //    }],
+    //  'returnValues':  'NONE'
+    // })
+
+    var d = when.defer(),
+        updateRequest = {},
+        response = [],
+        table,
+        obj,
+        hashKey = {},
+        rangeKey = {},
+        attributeUpdates = {},
+        attributeUpdate = {},
+        expectedAttributes = {},
+        expectedAttribute = {},
+        attrSchema = this.table(req.alias).attributeSchema;
+
+    table = this.table(req.alias);
+    // updateRequest[table.name] = {};
+
+    updateRequest = {
+        'TableName': table.name,
+        'Key': {},
+        'AttributeUpdates': {},
+        'ReturnValues': req.returnValues || 'NONE'
+    };
+
+    // Add hash
+    if (req.hash){
+        hashKey[table.hashType] = req.hash.toString();
+        updateRequest.Key.HashKeyElement = hashKey;
+    }
+    // Add range
+    if(req.range){
+        rangeKey[table.rangeType] = req.range.toString();
+        updateRequest.Key.RangeKeyElement = rangeKey;
+    }
+    // Add attributeUpdates
+    if(req.attributeUpdates){
+        req.attributeUpdates.forEach(function(attr){
+            attributeUpdate = {
+                'Value': {},
+                'Action': attr.action || 'PUT'
+            };
+            attributeUpdate.Value[attrSchema[attr.attributeName]] = attr.newValue;
+            attributeUpdates[attr.attributeName] = attributeUpdate;
+        });
+    }
+    // Add expectedValues for conditional update
+    if(req.expectedValues){
+        updateRequest.Expected = {};
+        req.expectedValues.forEach(function(attr){
+            expectedAttribute = {
+                'Value': {},
+                'Exists': attr.exists || 'true'
+            };
+            expectedAttribute.Value[attrSchema[attr.attributeName]] = attr.expectedValue;
+            expectedAttributes[attr.attributeName] = attributeUpdate;
+        });
+    }
+
+    // Make the request
+    this.db.updateItem(updateRequest, function(err, data){
+        if(!err){
+            // translate the response from dynamo format to exfm format
+            req.forEach(function(tableData){
+                table = this.table(tableData.alias);
+
+                var items = data.Responses[table.name].Items;
+                items.forEach(function(dynamoObj){
+                    obj = this.fromDynamo(tableData.alias, dynamoObj);
+                    response.push(obj);
+                }.bind(this));
+            }.bind(this));
+            return d.resolve(response);
+        }
+        return d.resolve(err);
+    }.bind(this));
+    return d.promise;
+};
 
 module.exports = Model;
