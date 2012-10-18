@@ -268,7 +268,6 @@ Model.prototype.batchGet = function(req){
         }
         return d.resolve(err);
     }.bind(this));
-
     return d.promise;
 };
 
@@ -283,6 +282,18 @@ var accept = function(item){
     return true;
 };
 
+function sortResults(values, results, field){
+    var sortedResults;
+    values.forEach(function(value){
+        results.forEach(function(object){
+            if (object[field] === value) {
+                sortedResults.push(object);
+            }
+        });
+
+    });
+    return sortedResults;
+}
 
 Model.prototype.toDynamo = function(tableName, obj){
     var dynamoObj = {'TableName': tableName, 'Item': {}};
