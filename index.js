@@ -285,6 +285,11 @@ var accept = function(item){
     return true;
 };
 
+function convertType(item){
+    if(item == true || item == 'true'){return 1;}
+    if(item == false || item == 'false'){return 0;}
+}
+
 function sortResults(values, results, field){
     var sortedResults;
     values.forEach(function(value){
@@ -371,26 +376,6 @@ Model.prototype.put = function(tableName, obj){
     return d.promise;
 };
 
-// @todo(jonathan) Make this work
-// Model.prototype.update = function(tableName, newObj){
-//     var d = when.defer(),
-//         dynamoObj;
-
-//     // @todo(jonathan) format newObj properly
-//     // http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_UpdateItem.html
-
-//     this.db.updateItem(
-//         dynamoObj,
-//         function(err, data){
-//             if(!err){
-//                 return d.resolve(data);
-//             }
-//             return d.resolve(err);
-//         }
-//     );
-//     return d.promise;
-// };
-
 Model.prototype.update = function(req){
 
     // usage:
@@ -451,7 +436,7 @@ Model.prototype.update = function(req){
                 'Value': {},
                 'Action': attr.action || 'PUT'
             };
-            attributeUpdate.Value[attrSchema[attr.attributeName]] = attr.newValue;
+            attributeUpdate.Value[attrSchema[attr.attributeName]] = convertType(attr.newValue);
             updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
         });
     }
@@ -461,9 +446,9 @@ Model.prototype.update = function(req){
         req.expectedValues.forEach(function(attr){
             expectedAttribute = {
                 'Value': {},
-                'Exists': attr.exists || 'true'
+                'Exists': attr.exists || convertType('true')
             };
-            expectedAttribute.Value[attrSchema[attr.attributeName]] = attr.expectedValue;
+            expectedAttribute.Value[attrSchema[attr.attributeName]] = convertType(attr.expectedValue);
             updateRequest.Expected[attr.attributeName] = attributeUpdate;
         });
     }
