@@ -33,20 +33,28 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
     if(process.env.NODE_ENV === "production"){
         // Connect to DynamoDB
-        log.info("Connecting to DynamoDB");
         this.client = dynamo.createClient({
             'accessKeyId': key,
             'secretAccessKey': secret
         });
         this.db = this.client.get(this.region || "us-east-1");
     } else {
-        // Connect to Magneto
-        // log.info("Connecting to Magneto");
-        this.client = dynamo.createClient();
-        this.client.useSession = false;
-        this.db = this.client.get(this.region || "us-east-1");
-        this.db.host = "localhost";
-        this.db.port = process.env.MAGNETO_PORT || 8081;
+        if(process.env.TEST_DB_ENV === "dynamo"){
+            // Connect to DynamoDB
+            this.client = dynamo.createClient({
+                'accessKeyId': key,
+                'secretAccessKey': secret
+            });
+            this.db = this.client.get(this.region || "us-east-1");
+        }
+        else {
+            // Connect to Magneto
+            this.client = dynamo.createClient();
+            this.client.useSession = false;
+            this.db = this.client.get(this.region || "us-east-1");
+            this.db.host = "localhost";
+            this.db.port = process.env.MAGNETO_PORT || 8081;
+        }
     }
 
     this.tableData.forEach(function(table){
@@ -100,7 +108,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
         this.tables[table.alias] = t;
 
-        this.tablesByName[tableName] = this.tables[table.alias];
+        this.tablesByName[tableName] = t;
 
     }.bind(this));
 
