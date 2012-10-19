@@ -179,8 +179,6 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 
     // Make the request
     this.db.getItem(request, function(err, data){
-        console.log(err);
-        console.log(data);
         if(!err){
             if(data.Item === undefined){
                 data.Item = {};
@@ -228,7 +226,7 @@ Model.prototype.batchGet = function(req){
 
     var d = when.defer(),
         request,
-        response = [],
+        results = [],
         table,
         obj;
 
@@ -264,20 +262,19 @@ Model.prototype.batchGet = function(req){
             req.forEach(function(tableData){
                 table = this.table(tableData.alias);
 
-                var items;
-                if (tableData.ordered){
-                    items = sortResults(tableData.hashes, data.Responses[table.name].Items, table.hashName, table.hashType);
-                }
-                else {
-                    items = data.Responses[table.name].Items;
-                }
-
+                var items = data.Responses[table.name].Items;
                 items.forEach(function(dynamoObj){
                     obj = this.fromDynamo(tableData.alias, dynamoObj);
-                    response.push(obj);
+                    results.push(obj);
                 }.bind(this));
+
+                // Sort the results if the ordered flag is true
+                if(tableData.ordered){
+                    results = sortResults(results, tableData.hashes,
+                        table.hashName);
+                }
             }.bind(this));
-            return d.resolve(response);
+            return d.resolve(results);
         }
         return d.resolve(err);
     }.bind(this));
@@ -301,12 +298,13 @@ function convertType(item){
     else {return item;}
 }
 
-function sortResults(values, results, hashKey, type){
-    var sortedResults;
-    console.log(values);
-    values.forEach(function(value){
+function sortResults(results, hashes, hashName){
+    // @todo (later) This might be slow. Maybe there's some sort by attribute
+    // function out there we could use that's a bit more optimized.
+    var sortedResults = [];
+    hashes.forEach(function(hash){
         results.forEach(function(object){
-            if (object[hashKey][type] === value) {
+            if (object[hashName] === hash) {
                 sortedResults.push(object);
             }
         });
