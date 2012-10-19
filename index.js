@@ -303,6 +303,28 @@ var accept = function(item){
     return true;
 };
 
+Model.prototype.checkForBase36 = function(id){
+    if (typeof id === 'string'){
+        var idString = id.split(''),
+        i,
+        validId = true;
+        // check if the string contains capitals - if it does, it's invalid
+        for (i=0; i<idString.length; i++){
+            if (idString[i] === idString[i].toUpperCase() &&
+                isNaN(parseInt(idString[i], 10))){
+                validId = false;
+            }
+        }
+        if (validId){
+            return parseInt(id, 36);
+        }
+        else {
+            return new Error('invalid base36 id');
+        }
+    }
+    return id;
+};
+
 function convertType(item){
     if(item === true || item === 'true'){return 1;}
     else if(item === false || item === 'false'){return 0;}
