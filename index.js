@@ -323,6 +323,7 @@ function sortResults(results, hashes, hashName){
     return sortedResults;
 }
 
+
 Model.prototype.valueToDynamo = function(value, attrType){
     var newValue;
 
@@ -455,22 +456,19 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
 Model.prototype.update = function(alias, hash, attrs, updateOpts){
 
     // usage:
-    // update({
-    //  'alias': 'song',
-    //  'hash': 'blah',
-    //  'range': 'blahblah',
-    //  'attributeUpdates': [{
+    // update('alias', 'hash', [{
     //      'attributeName': 'attribute_name'
     //      'newValue': 'new_value',
     //      'action': 'PUT'
-    //    }]
-    //  'expectedValues': [{
-    //      'attributeName': 'attribute_name',
-    //      'expectedValue': 'current_value',
-    //      'exists': 'true' // defaults to true
-    //    }],
-    //  'returnValues':  'NONE'
-    // })
+    //    }], {
+    //      'range': 'blahblah',
+    //      'expectedValues': [{
+    //          'attributeName': 'attribute_name',
+    //          'expectedValue': 'current_value', // optional
+    //          'exists': 'true' // defaults to true
+    //        }],
+    //      'returnValues':  'NONE'
+    //    })
 
     var d = when.defer(),
         updateRequest = {},
@@ -484,10 +482,14 @@ Model.prototype.update = function(alias, hash, attrs, updateOpts){
         expectedAttributes = {},
         expectedAttribute = {},
         attrSchema = this.table(alias).attributeSchema,
-        opts = updateOpts | {};
+        opts = {};
 
     table = this.table(alias);
     // updateRequest[table.name] = {};
+
+    if (updateOpts) {
+        opts = updateOpts;
+    }
 
     updateRequest = {
         'TableName': table.name,
@@ -519,28 +521,21 @@ Model.prototype.update = function(alias, hash, attrs, updateOpts){
         updateRequest.Expected = {};
         opts.expectedValues.forEach(function(attr){
             expectedAttribute = {
-                'Value': {},
-                'Exists': attr.exists || this.valueToDynamo(this, 'N')
+                'Exists': attr.exists || this.valueToDynamo(true, 'N')
             };
-            expectedAttribute.Value[attrSchema[attr.attributeName]] =
-                this.valueToDynamo(attr.expectedValue, attrSchema[attr.attributeName]);
-            updateRequest.Expected[attr.attributeName] = attributeUpdate;
+            if (attr.expectedValue) {
+                expectedAttribute.Value = {};
+                expectedAttribute.Value[attrSchema[attr.attributeName]] =
+                    this.valueToDynamo(attr.expectedValue, attrSchema[attr.attributeName]);
+            }
+
+            updateRequest.Expected[attr.attributeName] = expectedAttribute;
         }.bind(this));
     }
 
     // Make the request
     this.db.updateItem(updateRequest, function(err, data){
         if(!err){
-            // translate the response from dynamo format to exfm format
-            // req.forEach(function(tableData){
-            //     table = this.table(tableData.alias);
-
-            //     var items = data.Responses[table.name].Items;
-            //     items.forEach(function(dynamoObj){
-            //         obj = this.fromDynamo(tableData.alias, dynamoObj);
-            //         response.push(obj);
-            //     }.bind(this));
-            // }.bind(this));
             return d.resolve(data);
         }
         return d.resolve(err);
