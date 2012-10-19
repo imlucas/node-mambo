@@ -61,30 +61,31 @@ Model.prototype.connect = function(key, secret, prefix, region){
                 'SS': [String],
                 'StringSet': [String]
             },
-            tableName = (this.prefix || "") + table.table;
+            tableName = (this.prefix || "") + table.table,
+            t;
 
-        this.tables[table.alias] = this.db.get(tableName);
-        this.tables[table.alias].name = this.tables[table.alias].TableName;
+        t = this.db.get(tableName);
+        t.name = t.TableName;
 
-        this.tables[table.alias].read = table.read;
-        this.tables[table.alias].write = table.write;
+        t.read = table.read;
+        t.write = table.write;
         // The girth attribute is redundant and I'm pretty sure we don't need it.
-        this.tables[table.alias].girth = {
+        t.girth = {
             'read': table.read,
             'write': table.write
         };
-        this.girths[table.alias] = this.tables[table.alias].girth;
+        this.girths[table.alias] = t.girth;
 
-        this.tables[table.alias].hashType = table.hashType;
-        this.tables[table.alias].hashName = table.hashName;
+        t.hashType = table.hashType;
+        t.hashName = table.hashName;
         if(table.rangeName){
-            this.tables[table.alias].rangeType = table.rangeType;
-            this.tables[table.alias].rangeName = table.rangeName;
+            t.rangeType = table.rangeType;
+            t.rangeName = table.rangeName;
         }
-        this.tables[table.alias].key = {'HashKeyElement': {}};
-        this.tables[table.alias].key.HashKeyElement[table.hashType] = table.hashName;
+        t.key = {'HashKeyElement': {}};
+        t.key.HashKeyElement[table.hashType] = table.hashName;
         if(table.rangeName){
-            this.tables[table.alias].key.HashKeyElement[table.rangeType] = table.rangeName;
+            t.key.HashKeyElement[table.rangeType] = table.rangeName;
         }
 
         // Parse table hash and range names and types defined in package.json
@@ -93,9 +94,11 @@ Model.prototype.connect = function(key, secret, prefix, region){
         if (table.rangeName){
             schema[table.rangeName] = typeMap[table.rangeType];
         }
-        this.tables[table.alias].schema = schema;
+        t.schema = schema;
 
-        this.tables[table.alias].attributeSchema = this.attributeSchema[table.table];
+        t.attributeSchema = this.attributeSchema[table.table];
+
+        this.tables[table.alias] = t;
 
         this.tablesByName[tableName] = this.tables[table.alias];
 
