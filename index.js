@@ -192,7 +192,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     this.db.getItem(request, function(err, data){
         if(!err){
             if(data.Item === undefined){
-                data.Item = {};
+                return d.resolve({});
             }
             return d.resolve(this.fromDynamo(alias, data.Item));
         }
