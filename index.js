@@ -281,7 +281,7 @@ Model.prototype.batchGet = function(req){
 
                 // Sort the results if the ordered flag is true
                 if(tableData.ordered){
-                    results = sortResults(results, tableData.hashes,
+                    results = sortObjects(results, tableData.hashes,
                         table.hashName);
                 }
             }.bind(this));
@@ -309,20 +309,26 @@ function convertType(item){
     else {return item;}
 }
 
-function sortResults(results, hashes, hashName){
-    // @todo (later) This might be slow. Maybe there's some sort by attribgit ute
-    // function out there we could use that's a bit more optimized.
-    var sortedResults = [];
-    hashes.forEach(function(hash){
-        results.forEach(function(object){
-            if (object[hashName] === hash) {
-                sortedResults.push(object);
-            }
-        });
-    });
-    return sortedResults;
-}
+Array.prototype.toMap = function(property){
+    var m = {},
+        i = 0;
 
+    for(i=0; i < this.length; i++){
+        m[this[i][property]] = this[i];
+    }
+    return m;
+};
+
+function sortObjects(objects, values, property){
+    property = property || 'id';
+
+    var objectMap = objects.toMap(property);
+    return values.map(function(value){
+        return objectMap[value] || null;
+    }).filter(function(o){
+        return o !== null;
+    });
+}
 
 Model.prototype.valueToDynamo = function(value, attrType){
     var newValue;
