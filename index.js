@@ -281,7 +281,7 @@ Model.prototype.batchGet = function(req){
 
                 // Sort the results if the ordered flag is true
                 if(tableData.ordered){
-                    results = sortObjects(results, tableData.hashes,
+                    results = this.sortObjects(results, tableData.hashes,
                         table.hashName);
                 }
             }.bind(this));
@@ -319,7 +319,7 @@ Array.prototype.toMap = function(property){
     return m;
 };
 
-function sortObjects(objects, values, property){
+Model.prototype.sortObjects = function(objects, values, property){
     property = property || 'id';
 
     var objectMap = objects.toMap(property);
@@ -328,7 +328,7 @@ function sortObjects(objects, values, property){
     }).filter(function(o){
         return o !== null;
     });
-}
+};
 
 Model.prototype.valueToDynamo = function(value, attrType){
     var newValue;
