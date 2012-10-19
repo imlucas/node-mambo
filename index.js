@@ -310,7 +310,7 @@ function convertType(item){
 }
 
 function sortResults(results, hashes, hashName){
-    // @todo (later) This might be slow. Maybe there's some sort by attribute
+    // @todo (later) This might be slow. Maybe there's some sort by attribgit ute
     // function out there we could use that's a bit more optimized.
     var sortedResults = [];
     hashes.forEach(function(hash){
@@ -452,13 +452,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     return d.promise;
 };
 
-// @todo Consolidate into valueToDynamo/valueFromDynamo
-function convertType(item){
-    if(item === true || item === 'true'){return 1;}
-    if(item === false || item === 'false'){return 0;}
-}
-
-Model.prototype.update = function(req){
+Model.prototype.update = function(alias, hash, attrs, updateOpts){
 
     // usage:
     // update({
@@ -489,50 +483,49 @@ Model.prototype.update = function(req){
         attributeUpdate = {},
         expectedAttributes = {},
         expectedAttribute = {},
-        attrSchema = this.table(req.alias).attributeSchema;
+        attrSchema = this.table(alias).attributeSchema,
+        opts = updateOpts | {};
 
-    table = this.table(req.alias);
+    table = this.table(alias);
     // updateRequest[table.name] = {};
 
     updateRequest = {
         'TableName': table.name,
         'Key': {},
         'AttributeUpdates': {},
-        'ReturnValues': req.returnValues || 'NONE'
+        'ReturnValues': opts.returnValues || 'NONE'
     };
 
     // Add hash
-    if (req.hash){
-        hashKey[table.hashType] = req.hash.toString();
-        updateRequest.Key.HashKeyElement = hashKey;
-    }
+    hashKey[table.hashType] = hash.toString();
+    updateRequest.Key.HashKeyElement = hashKey;
     // Add range
-    if(req.range){
-        rangeKey[table.rangeType] = req.range.toString();
+    if(opts.range){
+        rangeKey[table.rangeType] = opts.range.toString();
         updateRequest.Key.RangeKeyElement = rangeKey;
     }
     // Add attributeUpdates
-    if(req.attributeUpdates){
-        req.attributeUpdates.forEach(function(attr){
-            attributeUpdate = {
-                'Value': {},
-                'Action': attr.action || 'PUT'
-            };
-            attributeUpdate.Value[attrSchema[attr.attributeName]] = convertType(attr.newValue);
-            updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
-        });
-    }
+    attrs.forEach(function(attr){
+        attributeUpdate = {
+            'Value': {},
+            'Action': attr.action || 'PUT'
+        };
+        attributeUpdate.Value[attrSchema[attr.attributeName]] =
+            this.valueToDynamo(attr.newValue, attrSchema[attr.attributeName]);
+        updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
+    }.bind(this));
     // Add expectedValues for conditional update
-    if(req.expectedValues){
+    if(opts.expectedValues){
         updateRequest.Expected = {};
-        req.expectedValues.forEach(function(attr){
+        opts.expectedValues.forEach(function(attr){
             expectedAttribute = {
                 'Value': {},
-                'Exists': attr.exists || convertType('true')
+                'Exists': attr.exists || this.valueToDynamo(this, 'N')
             };
-            expectedAttribute.Value[attrSchema[attr.attributeName]] = convertType(attr.expectedValue);
+            expectedAttribute.Value[attrSchema[attr.attributeName]] =
+                this.valueToDynamo(attr.expectedValue, attrSchema[attr.attributeName]);
             updateRequest.Expected[attr.attributeName] = attributeUpdate;
-        });
+        }.bind(this));
     }
 
     // Make the request
