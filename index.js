@@ -202,6 +202,74 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     return d.promise;
 };
 
+Model.prototype.delete = function(alias, hash, deleteOpts){
+
+    // usage:
+    // delete('alias', 'hash', {
+    //      'range': 'blahblah',
+    //      'expectedValues': [{
+    //          'attributeName': 'attribute_name',
+    //          'expectedValue': 'current_value', // optional
+    //          'exists': 'true' // defaults to true
+    //        }],
+    //      'returnValues':  'NONE'
+    //    })
+
+    var d = when.defer(),
+        table = this.table(alias),
+        deleteRequest = {},
+        opts = {},
+        attrSchema = this.table(alias).attributeSchema,
+        expectedAttribute = {},
+        hashKey = {},
+        rangeKey = {};
+
+    if (deleteOpts) {
+        opts = deleteOpts;
+    }
+
+    deleteRequest = {
+        'TableName': table.name,
+        'Key': {},
+        'ReturnValues': opts.returnValues || 'NONE'
+    };
+
+    // Add hash
+    hashKey[table.hashType] = hash.toString();
+    deleteRequest.Key.HashKeyElement = hashKey;
+    // Add range
+    if(opts.range){
+        rangeKey[table.rangeType] = opts.range.toString();
+        deleteRequest.Key.RangeKeyElement = rangeKey;
+    }
+
+    // Add expectedValues for conditional delete
+    if(opts.expectedValues){
+        deleteRequest.Expected = {};
+        opts.expectedValues.forEach(function(attr){
+            expectedAttribute = {
+                'Exists': attr.exists || this.valueToDynamo(true, 'N')
+            };
+            if (attr.expectedValue) {
+                expectedAttribute.Value = {};
+                expectedAttribute.Value[attrSchema[attr.attributeName]] =
+                    this.valueToDynamo(attr.expectedValue, attrSchema[attr.attributeName]);
+            }
+
+            deleteRequest.Expected[attr.attributeName] = expectedAttribute;
+        }.bind(this));
+    }
+
+    // Make the request
+    this.db.deleteItem(deleteRequest, function(err, data){
+        if(!err){
+            return d.resolve(data);
+        }
+        return d.resolve(err);
+    }.bind(this));
+    return d.promise;
+};
+
 Model.prototype.batchGet = function(req){
     // Accepts an array of objects
     // Each object should look like this:
