@@ -486,6 +486,7 @@ Model.prototype.fromDynamo = function(alias, dynamoObj){
 };
 
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
+
     // http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_PutItem.html
 
     // alias: The table alias name
@@ -633,6 +634,116 @@ Model.prototype.update = function(alias, hash, attrs, updateOpts){
     this.db.updateItem(updateRequest, function(err, data){
         if(!err){
             return d.resolve(data);
+        }
+        return d.resolve(err);
+    }.bind(this));
+    return d.promise;
+};
+
+Model.prototype.query = function(alias, hash, queryOpts){
+
+        // usage:
+        // query('alias', 'hash', {
+        //     'limit': 2,
+        //     'consistentRead': true,
+        //     'scanIndexForward': true,
+        //     'rangeKeyCondition': {
+        //         'attributeValueList': [{
+        //             'attributeName': 'blhah',
+        //             'attributeValue': 'some_value'
+        //         }],
+        //         'comparisonOperator': 'GT'
+        //     },
+        //     'exclusiveStartKey': {
+        //         'hashName': 'some_hash',
+        //         'rangeName': 'some_range'
+        //     },
+        //     'attributeToGet':  ['attribute']
+        // })
+
+    var d = when.defer(),
+        queryRequest = {},
+        response = [],
+        table,
+        obj,
+        hashKey = {},
+        rangeKey = {},
+        attributeValueList = [],
+        attributeValue = {},
+        exclusiveStartKey = {},
+        attrSchema = this.table(alias).attributeSchema,
+        opts = {},
+        attr,
+        fromDynamoObjects = [];
+
+    table = this.table(alias);
+    // updateRequest[table.name] = {};
+
+    if (queryOpts) {
+        opts = queryOpts;
+    }
+
+    queryRequest = {
+        'TableName': table.name
+    };
+
+    // Add HashKeyValue
+    hashKey[table.hashType] = hash.toString();
+    queryRequest.HashKeyValue = hashKey;
+
+    // Add RangeKeyCondition
+    if(opts.rangeKeyCondition !== undefined){
+        opts.rangeKeyCondition.attributeValueList.forEach(function(attr){
+            attributeValue = {};
+            attributeValue[attrSchema[attr.attributeName]] =
+                this.valueToDynamo(attr.attributeValue, attrSchema[attr.attributeName]);
+            attributeValueList.push(attributeValue);
+            // rangeKey[table.rangeType] = attr.attributeValue.toString();
+            // updateRequest.Key.RangeKeyElement = rangeKey;
+        });
+        queryRequest.RangeKeyCondition = {
+            'AttributeValueList': attributeValueList,
+            'ComparisonOperator': opts.rangeKeyCondition.comparisonOperator
+        };
+    }
+
+    // Add Limit
+    if(opts.limit !== undefined){
+        queryRequest.Limit = this.valueToDynamo(opts.limit, "N");
+    }
+
+    // Add ConsistentRead
+    if(opts.consistentRead !== undefined){
+        queryRequest.ConsistentRead = this.valueToDynamo(opts.consistentRead);
+    }
+
+    // Add ScanIndexForward
+    if(opts.scanIndexForward !== undefined){
+        queryRequest.ScanIndexForward = this.valueToDynamo(opts.scanIndexForward);
+    }
+
+    // Add ExclusiveStartKey
+    if(opts.exclusiveStartKey !== undefined){
+        hashKey[table.hashType] = opts.exclusiveStartKey.hashName.toString();
+        queryRequest.ExclusiveStartKey.HashKeyElement = hashKey;
+        if(opts.exclusiveStartKey.range !== undefined){
+            rangeKey[table.rangeType] = opts.exclusiveStartKey.rangeName.toString();
+            queryRequest.ExclusiveStartKey.RangeKeyElement = rangeKey;
+        }
+    }
+
+    // Add AttributesToGet
+    if(opts.attributesToGet !== undefined){
+        queryRequest.AttributesToGet = opts.attributesToGet;
+    }
+
+    // Make the request
+    this.db.query(queryRequest, function(err, data){
+        if(!err){
+            data.Items.forEach(function(item){
+                fromDynamoObjects.push(this.fromDynamo(alias, item));
+            }.bind(this));
+            return d.resolve(fromDynamoObjects);
         }
         return d.resolve(err);
     }.bind(this));
