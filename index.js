@@ -479,7 +479,6 @@ Model.prototype.fromDynamo = function(alias, dynamoObj){
     Object.keys(dynamoObj).map(function(attr){
         var attrType = this.table(alias).attributeSchema[attr],
             value = dynamoObj[attr][attrType];
-
         obj[attr] = this.valueFromDynamo(value, attrType);
     }.bind(this));
     return obj;
@@ -550,7 +549,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     return d.promise;
 };
 
-Model.prototype.update = function(alias, hash, attrs, updateOpts){
+Model.prototype.updateItem = function(alias, hash, attrs, updateOpts){
 
     // usage:
     // update('alias', 'hash', [{
@@ -599,7 +598,7 @@ Model.prototype.update = function(alias, hash, attrs, updateOpts){
     hashKey[table.hashType] = hash.toString();
     updateRequest.Key.HashKeyElement = hashKey;
     // Add range
-    if(opts.range){
+    if(opts.range !== undefined){
         rangeKey[table.rangeType] = opts.range.toString();
         updateRequest.Key.RangeKeyElement = rangeKey;
     }
@@ -614,7 +613,7 @@ Model.prototype.update = function(alias, hash, attrs, updateOpts){
         updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
     }.bind(this));
     // Add expectedValues for conditional update
-    if(opts.expectedValues){
+    if(opts.expectedValues !== undefined){
         updateRequest.Expected = {};
         opts.expectedValues.forEach(function(attr){
             expectedAttribute = {
@@ -633,7 +632,13 @@ Model.prototype.update = function(alias, hash, attrs, updateOpts){
     // Make the request
     this.db.updateItem(updateRequest, function(err, data){
         if(!err){
-            return d.resolve(data);
+            if (opts.returnValues !== undefined) {
+                var fromDynamo = this.fromDynamo(alias, data.Attributes);
+                return d.resolve(fromDynamo);
+            }
+            else {
+                return d.resolve(data);
+            }
         }
         return d.resolve(err);
     }.bind(this));
