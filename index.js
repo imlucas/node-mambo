@@ -496,7 +496,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     // {
     //     "url":"http://thissongexistsforreallzz.com/song1.mp3",
     //     "id":30326673248,
-    //     "urlMd5":"66496db3a1bbba45fb189030954e78d0",
+    //     "url_md5":"66496db3a1bbba45fb189030954e78d0",
     //     "metadata_state":"pending",
     //     "loved_count":0,
     //     "listened":0,
