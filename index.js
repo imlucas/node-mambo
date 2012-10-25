@@ -862,20 +862,44 @@ Model.prototype.recreateTable = function(alias) {
             }
         });
     }).then(function(next, data){
-        console.log('hi');
         tableRequest.KeySchema = tableDescription.Table.KeySchema;
         tableRequest.ProvisionedThroughput = tableDescription.Table.ProvisionedThroughput;
-        this.isTableActive(table.name).then(next);
+        this.isTableDeleted(table.name).then(next);
 
     }).then(function(next){
+        console.log('table deleted');
         this.db.createTable(tableRequest, function(err, data){
             if (!err) {
-                return d.resolve(data);
+                return next(data);
             }
             else {
                 throw new Error(err);
             }
         });
+    }).then(function(next, data){
+        this.isTableActive(table.name).then(function(){
+            d.resolve(true);
+        });
+    });
+    return d.promise;
+};
+
+Model.prototype.isTableDeleted = function(tableName){
+    var d = when.defer(),
+        self = this;
+    this.db.describeTable({
+        'TableName': tableName
+    }, function(err, data){
+        if (data === undefined) {
+            return d.resolve(true);
+        }
+        else {
+            setTimeout(function(){
+                self.isTableDeleted(tableName).then(function(_){
+                    d.resolve(_);
+                });
+            }, 5000);
+        }
     });
     return d.promise;
 };
@@ -886,8 +910,7 @@ Model.prototype.isTableActive = function(tableName){
     this.db.describeTable({
         'TableName': tableName
     }, function(err, data){
-        console.log(data);
-        if (!err && data.Table.TableStatus === 'ACTIVE') {
+        if (data.Table.TableStatus === 'ACTIVE') {
             return d.resolve(true);
         }
         else {
