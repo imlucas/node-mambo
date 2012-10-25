@@ -270,6 +270,10 @@ Model.prototype.delete = function(alias, hash, deleteOpts){
     return d.promise;
 };
 
+Model.prototype.deleteAllItems = function() {
+
+};
+
 Model.prototype.batchGet = function(req){
     // Accepts an array of objects
     // Each object should look like this:
@@ -752,6 +756,148 @@ Model.prototype.query = function(alias, hash, queryOpts){
         }
         return d.resolve(err);
     }.bind(this));
+    return d.promise;
+};
+
+// Model.prototype.deleteAllItems = function(alias) {
+//     var d = when.defer(),
+//         table = this.table(alias),
+//         scanRequest = {
+//             'TableName': table.name
+//         },
+//         deleteRequest = {
+//             'RequestItems': {}
+//         };
+
+//     sequence(this).then(function(next){
+//         this.db.scan(scanRequest, function(err, data){
+//             if(!err){
+//                 next(data.Items);
+//             }
+//             else{
+//                 throw new Error(err);
+//             }
+//         });
+//     }).then(function(next, scanResults){
+
+//         var seperatedRequests = [],
+//             i,
+//             j,
+//             chunkSize = 25;
+
+//         // seperate the scan results into chunks
+//         for (i = 0, j = scanResults.length; i < j; i += chunkSize) {
+//             seperatedRequests.push(scanResults.slice(i, i + chunkSize));
+//         }
+
+
+//         when.all(seperatedRequests.map(function(requests){
+//             var p = when.defer(),
+//                 deleteRequests = [];
+//             requests.forEach(function(item){
+//                 deleteRequests.push({
+//                     'DeleteRequest': {
+//                         'Key': {
+//                             'HashKeyElement': item[table.hashName]
+//                         }
+//                     }
+//                 });
+//             });
+//             deleteRequest.RequestItems[table.name] = deleteRequests;
+//             this.db.batchWriteItem(deleteRequest, function(err, data){
+//                 p.resolve(true);
+//             });
+//             return p.promise;
+//         }.bind(this)), function(){
+//             d.resolve(true);
+//         });
+
+//         d.resolve();
+//     });
+
+//     return d.promise;
+// };
+
+//                     ##      ##    ###    ########  ##    ## #### ##    ##  ######
+//  ##   ##   ##   ##  ##  ##  ##   ## ##   ##     ## ###   ##  ##  ###   ## ##    ##   ##   ##   ##   ##
+//   ## ##     ## ##   ##  ##  ##  ##   ##  ##     ## ####  ##  ##  ####  ## ##          ## ##     ## ##
+// ######### ######### ##  ##  ## ##     ## ########  ## ## ##  ##  ## ## ## ##   #### ######### #########
+//   ## ##     ## ##   ##  ##  ## ######### ##   ##   ##  ####  ##  ##  #### ##    ##    ## ##     ## ##
+//  ##   ##   ##   ##  ##  ##  ## ##     ## ##    ##  ##   ###  ##  ##   ### ##    ##   ##   ##   ##   ##
+//                      ###  ###  ##     ## ##     ## ##    ## #### ##    ##  ######
+
+//                ########     ###    ##    ##  ######   ######## ########   #######  ##     ##  ######
+//                ##     ##   ## ##   ###   ## ##    ##  ##       ##     ## ##     ## ##     ## ##    ##
+//                ##     ##  ##   ##  ####  ## ##        ##       ##     ## ##     ## ##     ## ##
+//                ##     ## ##     ## ## ## ## ##   #### ######   ########  ##     ## ##     ##  ######
+//                ##     ## ######### ##  #### ##    ##  ##       ##   ##   ##     ## ##     ##       ##
+//                ##     ## ##     ## ##   ### ##    ##  ##       ##    ##  ##     ## ##     ## ##    ##
+//                ########  ##     ## ##    ##  ######   ######## ##     ##  #######   #######   ######
+
+
+Model.prototype.recreateTable = function(alias) {
+    var d = when.defer(),
+        table = this.table(alias),
+        tableRequest = {
+            'TableName': table.name
+        },
+        tableDescription = {};
+    sequence(this).then(function(next){
+        this.db.describeTable(tableRequest, function(err, data){
+            if (!err) {
+                next(data);
+            }
+            else {
+                throw new Error(err);
+            }
+        });
+    }).then(function(next, data){
+        tableDescription = data;
+        this.db.deleteTable(tableRequest, function(err, data){
+            if (!err) {
+                next(data);
+            }
+            else {
+                throw new Error(err);
+            }
+        });
+    }).then(function(next, data){
+        console.log('hi');
+        tableRequest.KeySchema = tableDescription.Table.KeySchema;
+        tableRequest.ProvisionedThroughput = tableDescription.Table.ProvisionedThroughput;
+        this.isTableActive(table.name).then(next);
+
+    }).then(function(next){
+        this.db.createTable(tableRequest, function(err, data){
+            if (!err) {
+                return d.resolve(data);
+            }
+            else {
+                throw new Error(err);
+            }
+        });
+    });
+    return d.promise;
+};
+
+Model.prototype.isTableActive = function(tableName){
+    var d = when.defer(),
+        self = this;
+    this.db.describeTable({
+        'TableName': tableName
+    }, function(err, data){
+        console.log(data);
+        if (!err && data.Table.TableStatus === 'ACTIVE') {
+            return d.resolve(true);
+        }
+        else {
+            setTimeout(function(){
+                self.isTableActive(tableName).then(function(_){
+                    d.resolve(_);
+                });
+            }, 5000);
+        }
+    });
     return d.promise;
 };
 
