@@ -251,9 +251,10 @@ Model.prototype.delete = function(alias, hash, deleteOpts){
                 'Exists': attr.exists || this.valueToDynamo(true, 'N')
             };
             if (attr.expectedValue) {
+                var dynamoType = attrSchema[attr.attributeName].dynamoType;
                 expectedAttribute.Value = {};
-                expectedAttribute.Value[attrSchema[attr.attributeName]] =
-                    this.valueToDynamo(attr.expectedValue, attrSchema[attr.attributeName]);
+                expectedAttribute.Value[dynamoType] =
+                    this.valueToDynamo(attr.expectedValue, dynamoType);
             }
 
             deleteRequest.Expected[attr.attributeName] = expectedAttribute;
@@ -452,7 +453,7 @@ Model.prototype.toDynamo = function(alias, obj){
 
     Object.keys(obj).map(function(attr){
         if(accept(obj[attr])){
-            var attrType = table.attributeSchema[attr],
+            var attrType = table.attributeSchema[attr].dynamoType,
                 value = obj[attr];
 
             dynamoObj.Item[attr] = {};
@@ -481,7 +482,7 @@ Model.prototype.valueFromDynamo = function(value, attrType){
 Model.prototype.fromDynamo = function(alias, dynamoObj){
     var obj = {};
     Object.keys(dynamoObj).map(function(attr){
-        var attrType = this.table(alias).attributeSchema[attr],
+        var attrType = this.table(alias).attributeSchema[attr].dynamoType,
             value = dynamoObj[attr][attrType];
         obj[attr] = this.valueFromDynamo(value, attrType);
     }.bind(this));
@@ -529,7 +530,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     if(expected){
         request.Expected = {};
         Object.keys(expected).forEach(function(attr){
-            var attrType = table.attributeSchema[attr];
+            var attrType = table.attributeSchema[attr].dynamoType;
             request.Expected[attr] = {};
             request.Expected[attr].Exists = expected[attr].Exists;
             request.Expected[attr].Value = {};
@@ -608,25 +609,27 @@ Model.prototype.updateItem = function(alias, hash, attrs, updateOpts){
     }
     // Add attributeUpdates
     attrs.forEach(function(attr){
+        var dynamoType = attrSchema[attr.attributeName].dynamoType;
         attributeUpdate = {
             'Value': {},
             'Action': attr.action || 'PUT'
         };
-        attributeUpdate.Value[attrSchema[attr.attributeName]] =
-            this.valueToDynamo(attr.newValue, attrSchema[attr.attributeName]);
+        attributeUpdate.Value[dynamoType] = this.valueToDynamo(attr.newValue,
+            dynamoType);
         updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
     }.bind(this));
     // Add expectedValues for conditional update
     if(opts.expectedValues !== undefined){
         updateRequest.Expected = {};
         opts.expectedValues.forEach(function(attr){
+            var dynamoType = attrSchema[attr.attributeName].dynamoType;
             expectedAttribute = {
                 'Exists': attr.exists || this.valueToDynamo(true, 'N')
             };
             if (attr.expectedValue) {
                 expectedAttribute.Value = {};
-                expectedAttribute.Value[attrSchema[attr.attributeName]] =
-                    this.valueToDynamo(attr.expectedValue, attrSchema[attr.attributeName]);
+                expectedAttribute.Value[dynamoType] =
+                    this.valueToDynamo(attr.expectedValue, dynamoType);
             }
 
             updateRequest.Expected[attr.attributeName] = expectedAttribute;
@@ -683,7 +686,8 @@ Model.prototype.query = function(alias, hash, queryOpts){
         attrSchema = this.table(alias).attributeSchema,
         opts = {},
         attr,
-        fromDynamoObjects = [];
+        fromDynamoObjects = [],
+        dynamoType;
 
     table = this.table(alias);
     // updateRequest[table.name] = {};
@@ -703,9 +707,10 @@ Model.prototype.query = function(alias, hash, queryOpts){
     // Add RangeKeyCondition
     if(opts.rangeKeyCondition !== undefined){
         opts.rangeKeyCondition.attributeValueList.forEach(function(attr){
+            dynamoType = attrSchema[attr.attributeName];
             attributeValue = {};
-            attributeValue[attrSchema[attr.attributeName]] =
-                this.valueToDynamo(attr.attributeValue, attrSchema[attr.attributeName]);
+            attributeValue[dynamoType] = this.valueToDynamo(
+                attr.attributeValue, dynamoType);
             attributeValueList.push(attributeValue);
             // rangeKey[table.rangeType] = attr.attributeValue.toString();
             // updateRequest.Key.RangeKeyElement = rangeKey;
