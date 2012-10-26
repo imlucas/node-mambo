@@ -438,6 +438,9 @@ Model.prototype.valueToDynamo = function(value, dynamoType, exfmType){
         });
         return newValue;
     }
+    if(exfmType === "JSON"){
+        return JSON.stringify(value);
+    }
     return value;
 };
 
@@ -480,11 +483,9 @@ Model.prototype.valueFromDynamo = function(value, dynamoType, exfmType){
         });
         return newValue;
     }
-
-    if((dynamoType === "S") && (exfmType === "JSON")){
+    if(exfmType === "JSON"){
         return JSON.parse(value);
     }
-
     return value;
 };
 
