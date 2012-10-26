@@ -570,23 +570,21 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     return d.promise;
 };
 
+// usage:
+// update('alias', 'hash', [{
+//      'attributeName': 'attribute_name'
+//      'newValue': 'new_value',
+//      'action': 'PUT'
+//    }], {
+//      'range': 'blahblah',
+//      'expectedValues': [{
+//          'attributeName': 'attribute_name',
+//          'expectedValue': 'current_value', // optional
+//          'exists': 'true' // defaults to true
+//        }],
+//      'returnValues':  'NONE'
+//    })
 Model.prototype.updateItem = function(alias, hash, attrs, updateOpts){
-
-    // usage:
-    // update('alias', 'hash', [{
-    //      'attributeName': 'attribute_name'
-    //      'newValue': 'new_value',
-    //      'action': 'PUT'
-    //    }], {
-    //      'range': 'blahblah',
-    //      'expectedValues': [{
-    //          'attributeName': 'attribute_name',
-    //          'expectedValue': 'current_value', // optional
-    //          'exists': 'true' // defaults to true
-    //        }],
-    //      'returnValues':  'NONE'
-    //    })
-
     var d = when.defer(),
         updateRequest = {},
         response = [],
