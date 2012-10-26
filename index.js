@@ -495,8 +495,7 @@ Model.prototype.fromDynamo = function(alias, dynamoObj){
 
         log.debug("attr:", attr);
         log.debug("alias:", alias);
-        log.debug("this.table(alias):", this.table(alias));
-        log.debug("this.table(alias).attributeSchema:", this.table(alias).attributeSchema);
+        log.debug("this.table(alias).attributeSchema[attr]", this.table(alias).attributeSchema[attr]);
 
         var dynamoType = this.table(alias).attributeSchema[attr].dynamoType,
             exfmType = this.table(alias).attributeSchema[attr].exfmType,
