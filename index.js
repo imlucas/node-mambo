@@ -419,7 +419,7 @@ Model.prototype.sortObjects = function(objects, values, property){
     });
 };
 
-Model.prototype.valueToDynamo = function(value, attrType){
+Model.prototype.valueToDynamo = function(value, dynamoType, exfmType){
     var newValue;
 
     if(value === true){
@@ -428,10 +428,10 @@ Model.prototype.valueToDynamo = function(value, attrType){
     if(value === false){
         return "0";
     }
-    if(attrType === "N"){
+    if(dynamoType === "N"){
         return value.toString();
     }
-    if(attrType === "NS"){
+    if(dynamoType === "NS"){
         newValue = [];
         value.forEach(function(item){
             newValue.push(item.toString);
@@ -447,38 +447,54 @@ Model.prototype.toDynamo = function(alias, obj){
 
     Object.keys(obj).map(function(attr){
         if(accept(obj[attr])){
-            var attrType = table.attributeSchema[attr].dynamoType,
+            var dynamoType = table.attributeSchema[attr].dynamoType,
+                exfmType = table.attributeSchema[attr].exfmType,
                 value = obj[attr];
 
             dynamoObj.Item[attr] = {};
-            dynamoObj.Item[attr][attrType] = this.valueToDynamo(value, attrType);
+            dynamoObj.Item[attr][dynamoType] = this.valueToDynamo(value,
+                dynamoType, exfmType);
         }
     }.bind(this));
     return dynamoObj;
 };
 
-Model.prototype.valueFromDynamo = function(value, attrType){
+Model.prototype.valueFromDynamo = function(value, dynamoType, exfmType){
     var newValue;
-    if(attrType === "N"){
-        return parseInt(value, 10);
+    if(dynamoType === "N"){
+        newValue = parseInt(value, 10);
+        if(exfmType === "Boolean"){
+            if(newValue === 0){
+                newValue = false;
+            }
+            if(newValue === 1){
+                newValue = true;
+            }
+        }
+        return newValue;
     }
-    if(attrType === "NS"){
+    if(dynamoType === "NS"){
         newValue = [];
         value.forEach(function(n){
             newValue.push(parseInt(n, 10));
         });
         return newValue;
     }
-    // @todo Shit! Booleans are indistinguishable from numbers with values of 0 and 1.
+
+    if((dynamoType === "S") && (exfmType === "JSON")){
+        return JSON.parse(value);
+    }
+
     return value;
 };
 
 Model.prototype.fromDynamo = function(alias, dynamoObj){
     var obj = {};
     Object.keys(dynamoObj).map(function(attr){
-        var attrType = this.table(alias).attributeSchema[attr].dynamoType,
-            value = dynamoObj[attr][attrType];
-        obj[attr] = this.valueFromDynamo(value, attrType);
+        var dynamoType = this.table(alias).attributeSchema[attr].dynamoType,
+            exfmType = this.table(alias).attributeSchema[attr].exfmType,
+            value = dynamoObj[attr][dynamoType];
+        obj[attr] = this.valueFromDynamo(value, dynamoType, exfmType);
     }.bind(this));
     return obj;
 };
