@@ -398,12 +398,6 @@ Model.prototype.checkForBase36 = function(id){
     return id;
 };
 
-function convertType(item){
-    if(item === true || item === 'true'){return 1;}
-    else if(item === false || item === 'false'){return 0;}
-    else {return item;}
-}
-
 Array.prototype.toMap = function(property){
     var m = {},
         i = 0;
