@@ -842,6 +842,10 @@ Model.prototype.recreateTable = function(alias) {
             'TableName': table.name
         },
         tableDescription = {};
+
+    // if (process.env.NODE_ENV !== 'testing') {
+    //     throw new Error('Can only recreate a table in testing environment');
+    // }
     sequence(this).then(function(next){
         this.db.describeTable(tableRequest, function(err, data){
             if (!err) {
