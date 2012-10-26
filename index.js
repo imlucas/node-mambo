@@ -928,4 +928,8 @@ Model.prototype.isTableActive = function(tableName){
     return d.promise;
 };
 
+Model.prototype.batchWriteItem = function(alias){
+    // this.db.batchWriteItem(request, function(err, data){
+};
+
 module.exports = Model;
