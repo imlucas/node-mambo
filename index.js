@@ -4,7 +4,8 @@ var dynamo = require("dynamo"),
     when = require("when"),
     sequence = require("sequence"),
     winston = require("winston"),
-    _ = require("underscore");
+    _ = require("underscore"),
+    Query = require('./lib/query');
 
 // Setup logger
 winston.loggers.add("app", {
@@ -149,6 +150,10 @@ Model.prototype.ensureTableMagneto = function(alias){
         });
     });
     return d.promise;
+};
+
+Model.prototype.objects = function(alias, hash, range){
+    return new Query(this, alias, hash, range);
 };
 
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
