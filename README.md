@@ -23,24 +23,22 @@ Little wrapper for dynamo models
         JSONField = mambo.JSONField,
         DateField = mambo.DateField;
 
-    var schema = new Schema({
-            'post_id': NumberField,
-            'created': DateField,
-            'comment': StringField,
-            'author': StringField,
-            'liked_by': JSONField
-        },
-        {
-            'hash': 'post_id',
-            'range': 'created',
-            'alias': 'comments',
-            'name': 'Comments'
-        }
+    var Comment = new mambo.Model(new Schema(
+            'Comments', ['post_id', 'created'],
+            {
+                'post_id': NumberField,
+                'created': DateField,
+                'comment': StringField,
+                'author': StringField,
+                'liked_by': JSONField
+            }
+        ), new Schema('Users', 'username', {
+            'username': StringField,
+            'name': StringField,
+            'lastCommentPosted': DateField
+        })
     );
 
-    mambo.tablePrefix('TestEnv');
-
-    var Comment = new mambo.Model(schema);
     Comment.getAll = function(postId){
         this.objects('comments', postId)
             .limit(5).
