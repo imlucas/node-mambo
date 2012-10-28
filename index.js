@@ -218,7 +218,6 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 //            }],
 //          'returnValues':  'NONE'
 //        })
-
 Model.prototype.delete = function(alias, hash, deleteOpts){
     var d = when.defer(),
         table = this.table(alias),
@@ -793,8 +792,6 @@ Model.prototype.query = function(alias, hash, queryOpts){
 //                ##     ## ######### ##  #### ##    ##  ##       ##   ##   ##     ## ##     ##       ##
 //                ##     ## ##     ## ##   ### ##    ##  ##       ##    ##  ##     ## ##     ## ##    ##
 //                ########  ##     ## ##    ##  ######   ######## ##     ##  #######   #######   ######
-
-
 Model.prototype.recreateTable = function(alias) {
     var d = when.defer(),
         table = this.table(alias),
