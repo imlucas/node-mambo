@@ -492,11 +492,6 @@ Model.prototype.valueFromDynamo = function(value, dynamoType, exfmType){
 Model.prototype.fromDynamo = function(alias, dynamoObj){
     var obj = {};
     Object.keys(dynamoObj).map(function(attr){
-
-        log.debug("attr:", attr);
-        log.debug("alias:", alias);
-        log.debug("this.table(alias).attributeSchema[attr]", this.table(alias).attributeSchema[attr]);
-
         var dynamoType = this.table(alias).attributeSchema[attr].dynamoType,
             exfmType = this.table(alias).attributeSchema[attr].exfmType,
             value = dynamoObj[attr][dynamoType];
