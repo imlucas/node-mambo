@@ -1,6 +1,9 @@
 "use strict";
 
-var assert = require('assert');
+var assert = require('assert'),
+    magneto = require('magneto');
+
+magneto.server = null;
 
 var mambo = require('../'),
     Schema = mambo.Schema,
@@ -30,6 +33,16 @@ var loveSchema = new Schema('SongLoves', 'loves', ['id', 'created'], {
 var Song = new mambo.Model(songSchema, loveSchema);
 
 describe('Model', function(){
+    beforeEach(function(done){
+        magneto.server = magneto.listen(8081, function(s){
+            Song.createAll().then(function(){
+                done();
+            });
+        });
+    });
+    afterEach(function(){
+        magneto.server.close();
+    });
     it('should have all the schemas available after connecting', function(){
         Song.connect();
 

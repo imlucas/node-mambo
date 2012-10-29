@@ -163,7 +163,7 @@ Model.prototype.ensureTableMagneto = function(alias){
         }
         this.db.add({
             'name': this.table(alias).name,
-            'schema': this.table(alias).schema,
+            'schema': this.schema(alias).schema,
             'throughput': {
                 'read': 10,
                 'write': 10
@@ -436,7 +436,7 @@ Model.prototype.batchWrite = function(puts, deletes){
     if(totalOps > 25){
         throw new Error(totalOps + ' is too many for one batch!');
     }
-
+    console.log('Batch write request', JSON.stringify(req, null, 4));
     this.db.batchWriteItem(req, function(err, data){
         if(!d.rejectIfError(err)){
             d.resolve(data);
@@ -736,7 +736,6 @@ Model.prototype.recreateTable = function(alias) {
         this.isTableDeleted(table.name).then(next);
 
     }).then(function(next){
-        console.log('table deleted');
         this.db.createTable(tableRequest, function(err, data){
             if (!err) {
                 return next(data);
