@@ -91,6 +91,7 @@ describe('Model', function(){
         }
 
         q.commit().then(function(songs){
+            assert.ok(Array.isArray(songs), 'Should give us back some response docs?');
             assert.equal(songs.length, 50);
             done();
         });
@@ -104,6 +105,7 @@ describe('Model', function(){
             'username': 'lucas',
             'created': new Date()
         }).commit().then(function(docs){
+            assert.ok(docs.loves !== undefined, 'Should give us back some response docs?');
             assert.equal(docs.loves.length, 1);
             assert.equal(docs.songs.length, 1);
             done();
