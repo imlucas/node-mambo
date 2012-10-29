@@ -66,7 +66,9 @@ describe('Model', function(){
                 Date.now()
             ]
         }).commit().then(function(){
-            done();
+            Song.get('song', 1).then(function(s){
+                done();
+            });
         });
     });
 
@@ -110,7 +112,9 @@ describe('Model', function(){
         q.commit().then(function(res){
             assert.equal(res.success.loves, 1);
             assert.equal(res.success.song, 1);
-            done();
+            Song.objects('loves', 1).fetch().then(function(loves){
+                done();
+            });
         });
     });
 });

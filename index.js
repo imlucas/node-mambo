@@ -193,6 +193,7 @@ Model.prototype.ensureTableMagneto = function(alias){
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
     var d = when.defer(),
         table = this.table(alias),
+        schema = this.schema(alias),
         request;
 
     // Assemble the request data
@@ -203,10 +204,14 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
         }
     };
 
-    request.Key.HashKeyElement[table.hashType] = hash.toString();
-    if(table.rangeName){
-        request.Key.RangeKeyElement[table.rangeType] = range.toString();
+    request.Key.HashKeyElement[schema.field(schema.hash).type] = schema.field(schema.hash).export(hash);
+
+    if(schema.range){
+        request.Key.RangeKeyElement[schema.field(schema.range).type] = schema.field(schema.range).export(range);
     }
+
+    console.log(JSON.stringify(request, null, 4));
+
     if(attributesToGet && attributesToGet.length > 0){
         // Get only `attributesToGet`
         request.AttributesToGet = attributesToGet;
