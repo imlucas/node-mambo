@@ -67,7 +67,7 @@ describe('Model', function(){
         });
     });
 
-    it('should automatically split batches that are two large', function(done){
+    it('should automatically split batches that are too large', function(done){
         var q = Song.insert('song').set({
             'id': 1
         }), i = 2;
