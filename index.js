@@ -6,6 +6,7 @@ var dynamo = require("dynamo"),
     winston = require("winston"),
     _ = require("underscore"),
     Query = require('./lib/query'),
+    Schema = require('./lib/schema'),
     fields = require('./lib/fields');
 
 // Setup logger
@@ -47,7 +48,7 @@ function Model(){
 
     this.schemas.forEach(function(schema){
         this.schemasByName[schema.alias] = schema;
-    }).bind(this);
+    }.bind(this));
 
     this.tablesByName = {};
 }
@@ -108,6 +109,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
         _.extend(table, {
             'name': table.TableName,
+            'alias': schema.alias,
             'hashType': schema.hashType,
             'hashName': schema.hash,
             'key': {
@@ -125,7 +127,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
         }
 
         this.tables[table.alias] = this.tablesByName[tableName] = table;
-    }).bind(this);
+    }.bind(this));
 
     this.connected = true;
     return this;
@@ -723,7 +725,8 @@ Model.prototype.sortObjects = function(objects, values, property){
     });
 };
 
-module.exports = Model;
+module.exports.Model = Model;
+module.exports.Schema = Schema;
 Object.keys(fields).forEach(function(fieldName){
     module.exports[fieldName] = fields[fieldName];
 });
