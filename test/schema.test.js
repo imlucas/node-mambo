@@ -11,7 +11,7 @@ var Schema = require('../lib/schema'),
 
 describe('Schema', function(){
     it('should construct fields just using the classnames', function(){
-        var s = new Schema({
+        var s = new Schema('Song', 'id', {
             'id': NumberField,
             'title': StringField
         });
@@ -23,7 +23,7 @@ describe('Schema', function(){
     });
 
     it('should handle all field types', function(){
-        var s = new Schema({
+        var s = new Schema('Song', ['id', 'created'], {
             'id': NumberField,
             'title': StringField,
             'created': DateField,
@@ -43,7 +43,7 @@ describe('Schema', function(){
                 'recent_loves': '[{"username": "lucas"}]'
             },
             created = new Date(row.created),
-            s = new Schema({
+            s = new Schema('Song', 'id', {
                 'id': NumberField,
                 'title': StringField,
                 'created': DateField,
@@ -65,7 +65,7 @@ describe('Schema', function(){
                 'recent_loves': '[{"username": "lucas"}]'
             },
             created = row.created,
-            s = new Schema({
+            s = new Schema('Song', 'id', {
                 'id': NumberField,
                 'title': StringField,
                 'created': DateField,
