@@ -62,7 +62,7 @@ describe('Schema', function(){
                 'id': '1',
                 'title': 'Silence in a Sweater',
                 'created': new Date(1351373348257),
-                'recent_loves': '[{"username": "lucas"}]'
+                'recent_loves': [{"username": "lucas"}]
             },
             created = row.created,
             s = new Schema('Song', 'song', 'id', {
@@ -73,9 +73,9 @@ describe('Schema', function(){
             }),
             data = s.export(row);
 
-        assert.equal(data.id, 1);
-        assert.equal(data.title, 'Silence in a Sweater');
-        assert.equal(data.created, created.getTime());
-        assert.equal(data.recent_loves.length, row.recent_loves.length);
+        assert.equal(data.id.N, 1);
+        assert.equal(data.title.S, 'Silence in a Sweater');
+        assert.equal(data.created.N, created.getTime());
+        assert.equal(data.recent_loves.S.length, JSON.stringify(row.recent_loves).length);
     });
 });

@@ -7,7 +7,8 @@ var dynamo = require("dynamo"),
     _ = require("underscore"),
     Query = require('./lib/query'),
     Schema = require('./lib/schema'),
-    fields = require('./lib/fields');
+    fields = require('./lib/fields'),
+    Inserter = require('./lib/inserter');
 
 // Setup logger
 var log = winston.loggers.add("mambo", {
@@ -66,6 +67,10 @@ Model.prototype.table = function(alias){
 // Fetch a query wrapper Django style.
 Model.prototype.objects = function(alias, hash, range){
     return new Query(this, alias, hash, range);
+};
+
+Model.prototype.insert = function(alias){
+    return new Inserter(this, alias);
 };
 
 // Actually connect to dynamo or magneto.
