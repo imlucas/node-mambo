@@ -449,7 +449,8 @@ Model.prototype.batchWrite = function(puts, deletes){
                 success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
             });
 
-            d.resolve(success, data.UnprocessedItems);
+            d.resolve({'success': success,
+                'unprocessed': data.UnprocessedItems});
 
 
         }

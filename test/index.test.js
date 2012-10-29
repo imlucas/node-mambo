@@ -85,10 +85,12 @@ describe('Model', function(){
             'id': 1
         }), i = 2;
         for(i; i <= 50; i++){
-            q.insert('song').set({
+            q = q.insert('song').set({
                 'id': i
             });
         }
+        assert.equal(q.numOps, 50);
+        assert.equal(q.puts.song.length, 50);
 
         q.commit().then(function(songs){
             done();
@@ -105,9 +107,9 @@ describe('Model', function(){
         });
 
         assert.equal(q.lastAlias, 'loves');
-        q.commit().then(function(success){
-            assert.equal(success.loves, 1);
-            assert.equal(success.song, 1);
+        q.commit().then(function(res){
+            assert.equal(res.success.loves, 1);
+            assert.equal(res.success.song, 1);
             done();
         });
     });
