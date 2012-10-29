@@ -82,6 +82,7 @@ describe('Model', function(){
             done();
         });
     });
+
     it('should handle batch inserts across tables', function(done){
         Song.insert('song').set({
             'id': 1

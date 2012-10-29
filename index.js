@@ -366,6 +366,80 @@ Model.prototype.batchGet = function(req){
     return d.promise;
 };
 
+
+// this.batchWrite(
+//     {
+//         'song': [
+//             {
+//                 'id': 1,
+//                 'title': 'Silence in a Sweater'
+//             },
+//             {
+//                 'id': 2,
+//                 'title': 'Silence in a Sweater (pt 2)'
+//             },
+//         ]
+//     },
+//     {
+//         'song': [
+//             {'id': 3}
+//         ]
+//     }
+// );
+Model.prototype.batchWrite = function(puts, deletes){
+    var d = when.defer(),
+        req = {
+            'RequestItems': {}
+        },
+        totalOps = 0;
+
+    Object.keys(puts).forEach(function(alias){
+        var table = this.table(alias),
+            schema = this.schema(alias);
+
+        if(!req.RequestItems.hasOwnProperty(table.name)){
+            req.RequestItems[table.name] = [];
+        }
+        puts[alias].forEach(function(put){
+            req.RequestItems[table.name].push({
+                'PutRequest': {
+                    'Item': schema.export(put)
+                }
+            });
+            totalOps++;
+        });
+    }.bind(this));
+
+    Object.keys(deletes).forEach(function(alias){
+        var table = this.table(alias),
+            schema = this.schema(alias);
+
+        if(!req.RequestItems.hasOwnProperty(table.name)){
+            req.RequestItems[table.name] = [];
+        }
+
+        deletes[alias].forEach(function(del){
+            req.RequestItems[table.name].push({
+                'DeleteRequest': {
+                    'Key': schema.exportKey(del)
+                }
+            });
+            totalOps++;
+        });
+    }.bind(this));
+
+    if(totalOps > 25){
+        throw new Error(totalOps + ' is too many for one batch!');
+    }
+
+    this.db.batchWriteItem(req, function(err, data){
+        if(!d.rejectIfError(err)){
+            d.resolve(data);
+        }
+    });
+    return d.promise;
+};
+
 // http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_PutItem.html
 
 // alias: The table alias name
@@ -405,7 +479,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
         var value = obj[key],
             field = schema.field(key);
 
-        if(isFalsy(value)){
+        if(isFalsy(value)){ // This is incorrect...
             value = null;
         }
         request.Item[key] = {};
