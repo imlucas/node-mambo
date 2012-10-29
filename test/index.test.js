@@ -91,23 +91,23 @@ describe('Model', function(){
         }
 
         q.commit().then(function(songs){
-            assert.ok(Array.isArray(songs), 'Should give us back some response docs?');
-            assert.equal(songs.length, 50);
             done();
         });
     });
 
     it('should handle batch inserts across tables', function(done){
-        Song.insert('song').set({
+       var q = Song.insert('song').set({
             'id': 1
         }).insert('loves').set({
             'id': 1,
             'username': 'lucas',
             'created': new Date()
-        }).commit().then(function(docs){
-            assert.ok(docs.loves !== undefined, 'Should give us back some response docs?');
-            assert.equal(docs.loves.length, 1);
-            assert.equal(docs.songs.length, 1);
+        });
+
+        assert.equal(q.lastAlias, 'loves');
+        q.commit().then(function(success){
+            assert.equal(success.loves, 1);
+            assert.equal(success.song, 1);
             done();
         });
     });

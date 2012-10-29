@@ -64,6 +64,10 @@ Model.prototype.table = function(alias){
     return this.tables[alias];
 };
 
+Model.prototype.tableNameToAlias = function(name){
+    return this.tablesByName[name].alias;
+};
+
 // Fetch a query wrapper Django style.
 Model.prototype.objects = function(alias, hash, range){
     return new Query(this, alias, hash, range);
@@ -393,6 +397,7 @@ Model.prototype.batchGet = function(req){
 // );
 Model.prototype.batchWrite = function(puts, deletes){
     var d = when.defer(),
+        self = this,
         req = {
             'RequestItems': {}
         },
@@ -436,10 +441,17 @@ Model.prototype.batchWrite = function(puts, deletes){
     if(totalOps > 25){
         throw new Error(totalOps + ' is too many for one batch!');
     }
-    console.log('Batch write request', JSON.stringify(req, null, 4));
     this.db.batchWriteItem(req, function(err, data){
         if(!d.rejectIfError(err)){
-            d.resolve(data);
+            var success = {};
+
+            Object.keys(data.Responses).forEach(function(tableName){
+                success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
+            });
+
+            d.resolve(success, data.UnprocessedItems);
+
+
         }
     });
     return d.promise;
