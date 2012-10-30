@@ -42,11 +42,11 @@ Little wrapper for dynamo models
 
     Comment.getAll = function(postId){
         this.objects('comments', postId)
-            .limit(5).
+            .limit(5)
             .fetch().then(function(comments){
                 console.log('Comments for post ' + postId + ':\n'); console.log(JSON.stringify(comments, null, 4));
             });
-    });
+    };
 
     Comment.post = function(postId, author, comment){
         this.insert('comments',
@@ -60,6 +60,6 @@ Little wrapper for dynamo models
             .commit().then(function(){
             console.log('Comment added!');
         });
-    });
+    };
 
     module.exports = Comment;
