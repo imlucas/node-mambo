@@ -2,6 +2,7 @@
 
 Little wrapper for dynamo models
 
+[![Build Status](https://secure.travis-ci.org/exfm/node-mambo.png)](http://travis-ci.org/exfm/node-mambo)
 
 ## Install
 
