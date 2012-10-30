@@ -6,6 +6,7 @@ var dynamo = require("dynamo"),
     winston = require("winston"),
     _ = require("underscore"),
     Query = require('./lib/query'),
+    UpdateQuery = require('./lib/update-query'),
     Schema = require('./lib/schema'),
     fields = require('./lib/fields'),
     Inserter = require('./lib/inserter');
@@ -75,6 +76,14 @@ Model.prototype.objects = function(alias, hash, range){
 
 Model.prototype.insert = function(alias){
     return new Inserter(this, alias);
+};
+
+Model.prototype.update = function(alias, hash, range){
+    var q =  new UpdateQuery(this, alias, hash);
+    if(range){
+        q.range = range;
+    }
+    return q;
 };
 
 // Actually connect to dynamo or magneto.
