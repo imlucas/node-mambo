@@ -7,6 +7,7 @@ var dynamo = require("dynamo"),
     _ = require("underscore"),
     Query = require('./lib/query'),
     UpdateQuery = require('./lib/update-query'),
+    Batch = require('./lib/batch'),
     Schema = require('./lib/schema'),
     fields = require('./lib/fields'),
     Inserter = require('./lib/inserter');
@@ -71,7 +72,21 @@ Model.prototype.tableNameToAlias = function(name){
 
 // Fetch a query wrapper Django style.
 Model.prototype.objects = function(alias, hash, range){
-    return new Query(this, alias, hash, range);
+    if(typeof range === 'object'){
+        var d = when.defer(),
+            key = Object.keys(range)[0],
+            q = new Query(this, alias, hash);
+            q.fetch().then(function(results){
+                return results.filter(function(res){
+                    return res[key] === range[key];
+                })[0];
+            }, d.reject);
+        return d.promise;
+
+    }
+    else{
+        return new Query(this, alias, hash, range);
+    }
 };
 
 Model.prototype.insert = function(alias){
@@ -85,6 +100,11 @@ Model.prototype.update = function(alias, hash, range){
     }
     return q;
 };
+
+Model.prototype.batch = function(){
+    return new Batch(this);
+};
+
 
 // Actually connect to dynamo or magneto.
 Model.prototype.getDB = function(key, secret){
