@@ -4,33 +4,90 @@ var dynamo = require("dynamo"),
     when = require("when"),
     sequence = require("sequence"),
     winston = require("winston"),
-    _ = require("underscore");
+    _ = require("underscore"),
+    Query = require('./lib/query'),
+    UpdateQuery = require('./lib/update-query'),
+    Schema = require('./lib/schema'),
+    fields = require('./lib/fields'),
+    Inserter = require('./lib/inserter');
 
 // Setup logger
-winston.loggers.add("app", {
+var log = winston.loggers.add("mambo", {
     console: {
         'level': "silly",
-        'timestamp': true,
+        'timestamp': false,
         'colorize': true
     }
 });
-var log = winston.loggers.get("app");
 
+// Returns true if item is not undefined, null, "", [], or {}.
+var isFalsy = function(item){
+    if(item === false){return true;}
+    if(item === 0){return true;}
+    if(!item){return false;}
+    if((_.isObject(item)) && (_.isEmpty(item))){
+        return false;
+    }
+    return true;
+};
+
+var toMap = function(list, property){
+    var m = {},
+        i = 0;
+
+    for(i=0; i < this.length; i++){
+        m[list[i][property]] = list[i];
+    }
+    return m;
+};
 
 // Models have many tables.
-// Girths are short hand for throughput.
-function Model(tableData){
+function Model(){
     this.connected = false;
-    this.girths = {};
     this.tables = {};
+    this.schemas = Array.prototype.slice.call(arguments, 0);
+    this.schemasByName = {};
+
+    this.schemas.forEach(function(schema){
+        this.schemasByName[schema.alias] = schema;
+    }.bind(this));
+
     this.tablesByName = {};
-    this.tableData = tableData;
 }
 
-Model.prototype.connect = function(key, secret, prefix, region){
-    this.prefix = prefix;
-    this.region = region;
+// Grab a schema definition by alias.
+Model.prototype.schema = function(alias){
+    return this.schemasByName[alias];
+};
 
+// Get a dynamo table object by alias.
+Model.prototype.table = function(alias){
+    return this.tables[alias];
+};
+
+Model.prototype.tableNameToAlias = function(name){
+    return this.tablesByName[name].alias;
+};
+
+// Fetch a query wrapper Django style.
+Model.prototype.objects = function(alias, hash, range){
+    return new Query(this, alias, hash, range);
+};
+
+Model.prototype.insert = function(alias){
+    return new Inserter(this, alias);
+};
+
+Model.prototype.update = function(alias, hash, range){
+    var q =  new UpdateQuery(this, alias, hash);
+    if(range){
+        q.range = range;
+    }
+    return q;
+};
+
+// Actually connect to dynamo or magneto.
+Model.prototype.getDB = function(key, secret){
     if(process.env.NODE_ENV === "production"){
         // Connect to DynamoDB
         this.client = dynamo.createClient({
@@ -56,76 +113,55 @@ Model.prototype.connect = function(key, secret, prefix, region){
             this.db.port = process.env.MAGNETO_PORT || 8081;
         }
     }
+    return this.db;
+};
 
-    this.tableData.forEach(function(table){
-        var schema = {},
-            typeMap = {
-                'N': Number,
-                'Number': Number,
-                'NS': [Number],
-                'NumberSet': [Number],
-                'S': String,
-                'String': String,
-                'SS': [String],
-                'StringSet': [String]
-            },
-            tableName = (this.prefix || "") + table.table,
-            t;
+Model.prototype.connect = function(key, secret, prefix, region){
+    this.prefix = prefix;
+    this.region = region;
+    this.getDB(key, secret);
 
-        t = this.db.get(tableName);
-        t.name = t.TableName;
+    this.schemas.forEach(function(schema){
+        var tableName = (this.prefix || "") + schema.tableName,
+            table = this.db.get(tableName);
 
-        t.read = table.read;
-        t.write = table.write;
-        // The girth attribute is redundant and I'm pretty sure we don't need it.
-        t.girth = {
-            'read': table.read,
-            'write': table.write
-        };
-        this.girths[table.alias] = t.girth;
+        _.extend(table, {
+            'name': table.TableName,
+            'alias': schema.alias,
+            'hashType': schema.hashType,
+            'hashName': schema.hash,
+            'key': {
+                'HashKeyElement': {}
+            }
+        });
+        table.key.HashKeyElement[schema.hashType] = schema.hash;
 
-        t.hashType = table.hashType;
-        t.hashName = table.hashName;
-        if(table.rangeName){
-            t.rangeType = table.rangeType;
-            t.rangeName = table.rangeName;
-        }
-        t.key = {'HashKeyElement': {}};
-        t.key.HashKeyElement[table.hashType] = table.hashName;
-        if(table.rangeName){
-            t.key.HashKeyElement[table.rangeType] = table.rangeName;
+        if(schema.range){
+            _.extend(table, {
+                'rangeType': schema.rangeType,
+                'rangeName': schema.range
+            });
+            table.key.HashKeyElement[schema.rangeType] = schema.range;
         }
 
-        // Parse table hash and range names and types defined in package.json
-        // I believe this is redundant and unused as well.
-        schema[table.hashName] = typeMap[table.hashType];
-        if (table.rangeName){
-            schema[table.rangeName] = typeMap[table.rangeType];
-        }
-        t.schema = schema;
-
-        t.attributeSchema = this.attributeSchema[table.table];
-
-        this.tables[table.alias] = t;
-
-        this.tablesByName[tableName] = t;
-
+        this.tables[table.alias] = this.tablesByName[tableName] = table;
     }.bind(this));
 
     this.connected = true;
     return this;
 };
 
-Model.prototype.table = function(alias){
-    return this.tables[alias];
-};
-
+// Create all tables as defined by this models schemas.
 Model.prototype.createAll = function(){
     var d = when.defer();
-    when.all(Object.keys(this.tables).map(this.ensureTableMagneto.bind(this)), d.resolve);
+    when.all(Object.keys(this.tables).map(this.ensureTableMagneto.bind(this)),
+        d.resolve);
+
     return d.promise;
 };
 
+// Checks if all tables exist in magneto.  If a table doesn't exist
+// it will be created.
 Model.prototype.ensureTableMagneto = function(alias){
     var d = when.defer();
     sequence(this).then(function(next){
@@ -140,8 +176,11 @@ Model.prototype.ensureTableMagneto = function(alias){
         }
         this.db.add({
             'name': this.table(alias).name,
-            'schema': this.table(alias).schema,
-            'throughput': this.table(alias).girth
+            'schema': this.schema(alias).schema,
+            'throughput': {
+                'read': 10,
+                'write': 10
+            }
         }).save(function(err, table){
             if(!d.rejectIfError(err)){
                 d.resolve(true);
@@ -151,21 +190,19 @@ Model.prototype.ensureTableMagneto = function(alias){
     return d.promise;
 };
 
+// Low level get item wrapper.
+// Params:
+// - alias: The table alias name
+// - hash: the value of the key-hash of the object you want to retrieve, eg:
+// - the song ID
+// - range: the value of the key-range of the object you want to retrieve
+// - attributesToGet: An array of names of attributes to return in each
+// - object. If empty, get all attributes.
+// - consistentRead: boolean
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
-    // alias: The table alias name
-
-    // hash: the value of the key-hash of the object you want to retrieve, eg:
-    // the song ID
-
-    // range: the value of the key-range of the object you want to retrieve
-
-    // attributesToGet: An array of names of attributes to return in each
-    // object. If empty, get all attributes.
-
-    // consistentRead: boolean
-
     var d = when.defer(),
         table = this.table(alias),
+        schema = this.schema(alias),
         request;
 
     // Assemble the request data
@@ -175,12 +212,16 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
             'HashKeyElement': {}
         }
     };
-    request.Key.HashKeyElement[table.hashType] = hash.toString();
 
-    if(table.rangeName){
-        request.Key.RangeKeyElement[table.rangeType] = range.toString();
+    request.Key.HashKeyElement[schema.field(schema.hash).type] = schema.field(schema.hash).export(hash);
+
+    if(schema.range){
+        request.Key.RangeKeyElement[schema.field(schema.range).type] = schema.field(schema.range).export(range);
     }
-    if(attributesToGet){
+
+    console.log(JSON.stringify(request, null, 4));
+
+    if(attributesToGet && attributesToGet.length > 0){
         // Get only `attributesToGet`
         request.AttributesToGet = attributesToGet;
     }
@@ -190,132 +231,115 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 
     // Make the request
     this.db.getItem(request, function(err, data){
-        if(!err){
-            if(data.Item === undefined){
-                return d.resolve({});
-            }
-            return d.resolve(this.fromDynamo(alias, data.Item));
+        if(!d.rejectIfError(err)){
+            return d.resolve((data.Item !== undefined) ?
+                    this.schema(alias).import(data.Item) : null);
         }
-        return d.resolve(err);
     }.bind(this));
 
     return d.promise;
 };
 
-Model.prototype.delete = function(alias, hash, deleteOpts){
-
-    // usage:
-    // delete('alias', 'hash', {
-    //      'range': 'blahblah',
-    //      'expectedValues': [{
-    //          'attributeName': 'attribute_name',
-    //          'expectedValue': 'current_value', // optional
-    //          'exists': 'true' // defaults to true
-    //        }],
-    //      'returnValues':  'NONE'
-    //    })
-
+// Lowlevel delete item wrapper
+// example:
+//     delete('alias', 'hash', {
+//          'range': 'blahblah',
+//          'expectedValues': [{
+//              'attributeName': 'attribute_name',
+//              'expectedValue': 'current_value', // optional
+//              'exists': 'true' // defaults to true
+//            }],
+//          'returnValues':  'NONE'
+//        })
+Model.prototype.delete = function(alias, hash, opts){
+    opts = opts || {};
     var d = when.defer(),
         table = this.table(alias),
-        deleteRequest = {},
-        opts = {},
-        attrSchema = this.table(alias).attributeSchema,
-        expectedAttribute = {},
-        hashKey = {},
-        rangeKey = {};
-
-    if (deleteOpts) {
-        opts = deleteOpts;
-    }
-
-    deleteRequest = {
-        'TableName': table.name,
-        'Key': {},
-        'ReturnValues': opts.returnValues || 'NONE'
-    };
+        request = {
+            'TableName': table.name,
+            'Key': {
+                'HashKeyElement': {}
+            },
+            'ReturnValues': opts.returnValues || 'NONE'
+        };
 
     // Add hash
-    hashKey[table.hashType] = hash.toString();
-    deleteRequest.Key.HashKeyElement = hashKey;
+    request.Key.HashKeyElement[table.hashType] = hash.toString();
+
     // Add range
     if(opts.range){
-        rangeKey[table.rangeType] = opts.range.toString();
-        deleteRequest.Key.RangeKeyElement = rangeKey;
+        request.Key.RangeKeyElement = {};
+        request.Key.RangeKeyElement[table.rangeType] = opts.range.toString();
     }
 
     // Add expectedValues for conditional delete
     if(opts.expectedValues){
-        deleteRequest.Expected = {};
+        request.Expected = {};
         opts.expectedValues.forEach(function(attr){
-            expectedAttribute = {
-                'Exists': attr.exists || this.valueToDynamo(true, 'N')
-            };
-            if (attr.expectedValue) {
-                var dynamoType = attrSchema[attr.attributeName].dynamoType;
-                expectedAttribute.Value = {};
-                expectedAttribute.Value[dynamoType] =
-                    this.valueToDynamo(attr.expectedValue, dynamoType);
-            }
+            var expectedAttribute = {
+                    'Exists': attr.exists || Number(true)
+                },
+                field = this.schema(alias).field(attr.attributeName);
 
-            deleteRequest.Expected[attr.attributeName] = expectedAttribute;
+            if (attr.expectedValue) {
+                expectedAttribute.Value = {};
+                expectedAttribute.Value[field.type] = field.export(attr.expectedValue);
+            }
+            request.Expected[attr.attributeName] = expectedAttribute;
         }.bind(this));
     }
 
     // Make the request
-    this.db.deleteItem(deleteRequest, function(err, data){
-        if(!err){
+    this.db.deleteItem(request, function(err, data){
+        if(!d.rejectIfError(err)){
             return d.resolve(data);
         }
-        return d.resolve(err);
     }.bind(this));
     return d.promise;
 };
 
-Model.prototype.deleteAllItems = function() {
+// Accepts an array of objects
+// Each object should look like this:
+// {
+//     'alias': 'url',
+//     'hashes': [2134, 1234],
+//     'ranges': [333333, 222222],
+//     'attributesToGet': ['url']
+// }
+// alias is the table alias name
+// hashes is an array of key-hashes of objects you want to get from this table
+// ranges is an array of key-ranges of objects you want to get from this table
+// only use ranges if this table has ranges in its key schema
+// hashes and ranges must be the same length and have corresponding values
+// attributesToGet is an array of the attributes you want returned for each
+// object. Omit if you want the whole object.
 
-};
-
+// Example:
+// To get the urls of songs 1, 2, and 3 and the entire love objects for
+// love 98 with created value 1350490700640 and love 99 with 1350490700650:
+// [
+//     {
+//         'alias': 'song',
+//         'hashes': [1, 2, 3],
+//         'attributesToGet': ['url']
+//     },
+//     {
+//         'alias': 'loves',
+//         'hashes': [98, 99],
+//         'ranges': [1350490700640, 1350490700650]
+//     },
+// ]
 Model.prototype.batchGet = function(req){
-    // Accepts an array of objects
-    // Each object should look like this:
-    // {
-    //     'alias': 'url',
-    //     'hashes': [2134, 1234],
-    //     'ranges': [333333, 222222],
-    //     'attributesToGet': ['url']
-    // }
-    // alias is the table alias name
-    // hashes is an array of key-hashes of objects you want to get from this table
-    // ranges is an array of key-ranges of objects you want to get from this table
-    // only use ranges if this table has ranges in its key schema
-    // hashes and ranges must be the same length and have corresponding values
-    // attributesToGet is an array of the attributes you want returned for each
-    // object. Omit if you want the whole object.
-
-    // Example:
-    // To get the urls of songs 1, 2, and 3 and the entire love objects for
-    // love 98 with created value 1350490700640 and love 99 with 1350490700650:
-    // [
-    //     {
-    //         'alias': 'song',
-    //         'hashes': [1, 2, 3],
-    //         'attributesToGet': ['url']
-    //     },
-    //     {
-    //         'alias': 'loves',
-    //         'hashes': [98, 99],
-    //         'ranges': [1350490700640, 1350490700650]
-    //     },
-    // ]
-
     var d = when.defer(),
-        request,
+        request = {
+            'RequestItems': {}
+        },
         results = [],
         table,
         obj;
 
     // Assemble the request data
-    request = {'RequestItems': {}};
+
     req.forEach(function(item){
         table = this.table(item.alias);
         request.RequestItems[table.name] = {'Keys': []};
@@ -325,6 +349,7 @@ Model.prototype.batchGet = function(req){
             hashKey.HashKeyElement[table.hashType] = hash.toString();
             request.RequestItems[table.name].Keys.push(hashKey);
         });
+
         // Add ranges
         if(item.ranges){
             item.ranges.forEach(function(range){
@@ -333,6 +358,7 @@ Model.prototype.batchGet = function(req){
                 request.RequestItems[table.name].Keys.push(rangeKey);
             });
         }
+
         // Add attributesToGet
         if(item.attributesToGet){
             request.RequestItems[table.name].AttributesToGet = item.attributesToGet;
@@ -341,15 +367,15 @@ Model.prototype.batchGet = function(req){
 
     // Make the request
     this.db.batchGetItem(request, function(err, data){
-        if(!err){
+        if(!d.rejectIfError(err)){
             // translate the response from dynamo format to exfm format
             req.forEach(function(tableData){
-                table = this.table(tableData.alias);
+                var table = this.table(tableData.alias),
+                    schema = this.schema(tableData.alias),
+                    items = data.Responses[table.name].Items;
 
-                var items = data.Responses[table.name].Items;
-                items.forEach(function(dynamoObj){
-                    obj = this.fromDynamo(tableData.alias, dynamoObj);
-                    results.push(obj);
+                results = items.map(function(dynamoObj){
+                    return schema.import(dynamoObj);
                 }.bind(this));
 
                 // Sort the results if the ordered flag is true
@@ -358,209 +384,158 @@ Model.prototype.batchGet = function(req){
                         table.hashName);
                 }
             }.bind(this));
-            return d.resolve(results);
         }
-        return d.resolve(err);
     }.bind(this));
     return d.promise;
 };
 
-var accept = function(item){
-    // Returns true if item is not undefined, null, "", [], or {}.
-    if(item === false){return true;}
-    if(item === 0){return true;}
-    if(!item){return false;}
-    if((_.isObject(item)) && (_.isEmpty(item))){
-        return false;
-    }
-    return true;
-};
 
-Model.prototype.checkForBase36 = function(id){
-    if (typeof id === 'string'){
-        var idString = id.split(''),
-        i,
-        validId = true;
-        // check if the string contains capitals - if it does, it's invalid
-        for (i=0; i<idString.length; i++){
-            if (idString[i] === idString[i].toUpperCase() &&
-                isNaN(parseInt(idString[i], 10))){
-                validId = false;
-            }
+// this.batchWrite(
+//     {
+//         'song': [
+//             {
+//                 'id': 1,
+//                 'title': 'Silence in a Sweater'
+//             },
+//             {
+//                 'id': 2,
+//                 'title': 'Silence in a Sweater (pt 2)'
+//             },
+//         ]
+//     },
+//     {
+//         'song': [
+//             {'id': 3}
+//         ]
+//     }
+// );
+Model.prototype.batchWrite = function(puts, deletes){
+    var d = when.defer(),
+        self = this,
+        req = {
+            'RequestItems': {}
+        },
+        totalOps = 0;
+
+    Object.keys(puts).forEach(function(alias){
+        var table = this.table(alias),
+            schema = this.schema(alias);
+
+        if(!req.RequestItems.hasOwnProperty(table.name)){
+            req.RequestItems[table.name] = [];
         }
-        if (validId){
-            return parseInt(id, 36);
+        puts[alias].forEach(function(put){
+            req.RequestItems[table.name].push({
+                'PutRequest': {
+                    'Item': schema.export(put)
+                }
+            });
+            totalOps++;
+        });
+    }.bind(this));
+
+    Object.keys(deletes).forEach(function(alias){
+        var table = this.table(alias),
+            schema = this.schema(alias);
+
+        if(!req.RequestItems.hasOwnProperty(table.name)){
+            req.RequestItems[table.name] = [];
         }
-        else {
-            return new Error('invalid base36 id');
+
+        deletes[alias].forEach(function(del){
+            req.RequestItems[table.name].push({
+                'DeleteRequest': {
+                    'Key': schema.exportKey(del)
+                }
+            });
+            totalOps++;
+        });
+    }.bind(this));
+
+    if(totalOps > 25){
+        throw new Error(totalOps + ' is too many for one batch!');
+    }
+    this.db.batchWriteItem(req, function(err, data){
+        if(!d.rejectIfError(err)){
+            var success = {};
+
+            Object.keys(data.Responses).forEach(function(tableName){
+                success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
+            });
+            d.resolve({'success': success,
+                'unprocessed': data.UnprocessedItems});
         }
-    }
-    return id;
-};
-
-Array.prototype.toMap = function(property){
-    var m = {},
-        i = 0;
-
-    for(i=0; i < this.length; i++){
-        m[this[i][property]] = this[i];
-    }
-    return m;
-};
-
-Model.prototype.sortObjects = function(objects, values, property){
-    property = property || 'id';
-
-    var objectMap = objects.toMap(property);
-    return values.map(function(value){
-        return objectMap[value] || null;
-    }).filter(function(o){
-        return o !== null;
     });
+    return d.promise;
 };
 
-Model.prototype.valueToDynamo = function(value, dynamoType, exfmType){
-    var newValue;
+// http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_PutItem.html
 
-    if(value === true){
-        return "1";
-    }
-    if(value === false){
-        return "0";
-    }
-    if(dynamoType === "N"){
-        return value.toString();
-    }
-    if(dynamoType === "NS"){
-        newValue = [];
-        value.forEach(function(item){
-            newValue.push(item.toString);
-        });
-        return newValue;
-    }
-    if(exfmType === "JSON"){
-        return JSON.stringify(value);
-    }
-    return value;
-};
+// alias: The table alias name
 
-Model.prototype.toDynamo = function(alias, obj){
-    var table = this.table(alias),
-        dynamoObj = {'TableName': table.name, 'Item': {}};
+// obj: The object to put in the table. This method will handle formatting
+// the object and casting.
+// Sample:
+// {
+//     "url":"http://thissongexistsforreallzz.com/song1.mp3",
+//     "id":30326673248,
+//     "url_md5":"66496db3a1bbba45fb189030954e78d0",
+//     "metadata_state":"pending",
+//     "loved_count":0,
+//     "listened":0,
+//     "version":1,
+//     "created":1350500174375
+// }
+//
 
-    Object.keys(obj).map(function(attr){
-        if(accept(obj[attr])){
-            var dynamoType = table.attributeSchema[attr].dynamoType,
-                exfmType = table.attributeSchema[attr].exfmType,
-                value = obj[attr];
-
-            dynamoObj.Item[attr] = {};
-            dynamoObj.Item[attr][dynamoType] = this.valueToDynamo(value,
-                dynamoType, exfmType);
-        }
-    }.bind(this));
-    return dynamoObj;
-};
-
-Model.prototype.valueFromDynamo = function(value, dynamoType, exfmType){
-    var newValue;
-    if(dynamoType === "N"){
-        newValue = parseInt(value, 10);
-        if(exfmType === "Boolean"){
-            if(newValue === 0){
-                newValue = false;
-            }
-            if(newValue === 1){
-                newValue = true;
-            }
-        }
-        return newValue;
-    }
-    if(dynamoType === "NS"){
-        newValue = [];
-        value.forEach(function(n){
-            newValue.push(parseInt(n, 10));
-        });
-        return newValue;
-    }
-    if(exfmType === "JSON"){
-        return JSON.parse(value);
-    }
-    return value;
-};
-
-Model.prototype.fromDynamo = function(alias, dynamoObj){
-    var obj = {};
-    Object.keys(dynamoObj).map(function(attr){
-        var dynamoType = this.table(alias).attributeSchema[attr].dynamoType,
-            exfmType = this.table(alias).attributeSchema[attr].exfmType,
-            value = dynamoObj[attr][dynamoType];
-        obj[attr] = this.valueFromDynamo(value, dynamoType, exfmType);
-    }.bind(this));
-    return obj;
-};
-
+// expected: See AWS docs for an explanation. This method handles casting
+// and supplying the attribute types, so this object is somewhat simplified
+// from what AWS accepts.
+// Sample:
+// {
+//     'metadata_state': {'Value': 'pending', 'Exists': true},
+//     'version': {'Value': 0, 'Exists': true}
+// }
+// returnValues: See AWS docs for an explanation.
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
-
-    // http://docs.amazonwebservices.com/amazondynamodb/latest/developerguide/API_PutItem.html
-
-    // alias: The table alias name
-
-    // obj: The object to put in the table. This method will handle formatting
-    // the object and casting.
-    // Sample:
-    // {
-    //     "url":"http://thissongexistsforreallzz.com/song1.mp3",
-    //     "id":30326673248,
-    //     "url_md5":"66496db3a1bbba45fb189030954e78d0",
-    //     "metadata_state":"pending",
-    //     "loved_count":0,
-    //     "listened":0,
-    //     "version":1,
-    //     "created":1350500174375
-    // }
-    //
-
-    // expected: See AWS docs for an explanation. This method handles casting
-    // and supplying the attribute types, so this object is somewhat simplified
-    // from what AWS accepts.
-    // Sample:
-    // {
-    //     'metadata_state': {'Value': 'pending', 'Exists': true},
-    //     'version': {'Value': 0, 'Exists': true}
-    // }
-
-    // returnValues: See AWS docs for an explanation.
-
     var d = when.defer(),
         table = this.table(alias),
-        request;
+        request = {'TableName': table.name, 'Item': {}},
+        schema = this.schema(alias);
 
     // Assemble the request data
-    request = this.toDynamo(alias, obj);
+    Object.keys(obj).map(function(key){
+        var value = obj[key],
+            field = schema.field(key);
+
+        if(isFalsy(value)){ // This is incorrect...
+            value = null;
+        }
+        request.Item[key] = {};
+        request.Item[key][field.type] = field.export(value);
+    }.bind(this));
+
     if(expected){
         request.Expected = {};
-        Object.keys(expected).forEach(function(attr){
-            var attrType = table.attributeSchema[attr].dynamoType;
-            request.Expected[attr] = {};
-            request.Expected[attr].Exists = expected[attr].Exists;
-            request.Expected[attr].Value = {};
-
-            // Cast values to what dynamo expects
-            request.Expected[attr].Value[attrType] = this.valueToDynamo(
-                expected[attr].Value, attrType);
+        Object.keys(expected).forEach(function(key){
+            var field = schema.field(key);
+            request.Expected[key] = {
+                'Value': {}
+            };
+            request.Expected[key].Exists = expected[key].Exists;
+            request.Expected[key].Value[field.type] = field.export(expected[key].Value);
         }.bind(this));
     }
+
     if(returnOldValues === true){
         request.ReturnValues = "ALL_OLD";
     }
 
     // Make the request
     this.db.putItem(request, function(err, data){
-        if(!err){
+        if(!d.rejectIfError(err)){
             return d.resolve(obj);
         }
-        return d.resolve(err);
     });
     return d.promise;
 };
@@ -579,113 +554,103 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
 //        }],
 //      'returnValues':  'NONE'
 //    })
-Model.prototype.updateItem = function(alias, hash, attrs, updateOpts){
+Model.prototype.updateItem = function(alias, hash, attrs, opts){
+    opts = opts || {};
+
     var d = when.defer(),
-        updateRequest = {},
         response = [],
-        table,
+        table = this.table(alias),
+        schema = this.schema(alias),
+        request = {
+            'TableName': table.name,
+            'Key': {},
+            'AttributeUpdates': {},
+            'ReturnValues': opts.returnValues || 'NONE'
+        },
         obj,
         hashKey = {},
         rangeKey = {},
-        attributeUpdates = {},
-        attributeUpdate = {},
         expectedAttributes = {},
         expectedAttribute = {},
-        attrSchema = this.table(alias).attributeSchema,
-        opts = {};
-
-    table = this.table(alias);
-    // updateRequest[table.name] = {};
-
-    if (updateOpts) {
-        opts = updateOpts;
-    }
-
-    updateRequest = {
-        'TableName': table.name,
-        'Key': {},
-        'AttributeUpdates': {},
-        'ReturnValues': opts.returnValues || 'NONE'
-    };
+        attrSchema = this.table(alias).attributeSchema;
 
     // Add hash
     hashKey[table.hashType] = hash.toString();
-    updateRequest.Key.HashKeyElement = hashKey;
+    request.Key.HashKeyElement = hashKey;
+
     // Add range
     if(opts.range !== undefined){
         rangeKey[table.rangeType] = opts.range.toString();
-        updateRequest.Key.RangeKeyElement = rangeKey;
+        request.Key.RangeKeyElement = rangeKey;
     }
+
     // Add attributeUpdates
     attrs.forEach(function(attr){
-        var dynamoType = attrSchema[attr.attributeName].dynamoType;
-        attributeUpdate = {
-            'Value': {},
-            'Action': attr.action || 'PUT'
-        };
-        attributeUpdate.Value[dynamoType] = this.valueToDynamo(attr.newValue,
-            dynamoType);
-        updateRequest.AttributeUpdates[attr.attributeName] = attributeUpdate;
+        var field = schema.field(attr.attributeName),
+            attributeUpdate = {
+                'Value': {},
+                'Action': attr.action || 'PUT'
+            };
+        attributeUpdate.Value[field.type] = field.export(attr.newValue);
+        request.AttributeUpdates[attr.attributeName] = attributeUpdate;
     }.bind(this));
+
     // Add expectedValues for conditional update
     if(opts.expectedValues !== undefined){
-        updateRequest.Expected = {};
+        request.Expected = {};
         opts.expectedValues.forEach(function(attr){
-            var dynamoType = attrSchema[attr.attributeName].dynamoType;
+            var field = schema.field(attr.attributeName);
             expectedAttribute = {
-                'Exists': attr.exists || this.valueToDynamo(true, 'N')
+                'Exists': Number(attr.exists).toString()
             };
             if (attr.expectedValue) {
                 expectedAttribute.Value = {};
-                expectedAttribute.Value[dynamoType] =
-                    this.valueToDynamo(attr.expectedValue, dynamoType);
+                expectedAttribute.Value[field.type] = field.export(attr.expectedValue);
             }
 
-            updateRequest.Expected[attr.attributeName] = expectedAttribute;
+            request.Expected[attr.attributeName] = expectedAttribute;
         }.bind(this));
     }
 
     // Make the request
-    this.db.updateItem(updateRequest, function(err, data){
-        if(!err){
+    this.db.updateItem(request, function(err, data){
+        if(!d.rejectIfError(err)){
             if (opts.returnValues !== undefined) {
-                var fromDynamo = this.fromDynamo(alias, data.Attributes);
-                return d.resolve(fromDynamo);
+                return d.resolve(schema.import(data.Attributes));
             }
-            else {
-                return d.resolve(data);
-            }
+            return d.resolve(data);
         }
-        return d.resolve(err);
     }.bind(this));
     return d.promise;
 };
 
-Model.prototype.query = function(alias, hash, queryOpts){
-
-        // usage:
-        // query('alias', 'hash', {
-        //     'limit': 2,
-        //     'consistentRead': true,
-        //     'scanIndexForward': true,
-        //     'rangeKeyCondition': {
-        //         'attributeValueList': [{
-        //             'attributeName': 'blhah',
-        //             'attributeValue': 'some_value'
-        //         }],
-        //         'comparisonOperator': 'GT'
-        //     },
-        //     'exclusiveStartKey': {
-        //         'hashName': 'some_hash',
-        //         'rangeName': 'some_range'
-        //     },
-        //     'attributeToGet':  ['attribute']
-        // })
-
+// usage:
+// query('alias', 'hash', {
+//     'limit': 2,
+//     'consistentRead': true,
+//     'scanIndexForward': true,
+//     'rangeKeyCondition': {
+//         'attributeValueList': [{
+//             'attributeName': 'blhah',
+//             'attributeValue': 'some_value'
+//         }],
+//         'comparisonOperator': 'GT'
+//     },
+//     'exclusiveStartKey': {
+//         'hashName': 'some_hash',
+//         'rangeName': 'some_range'
+//     },
+//     'attributeToGet':  ['attribute']
+// })
+Model.prototype.query = function(alias, hash, opts){
+    opts = opts || {};
     var d = when.defer(),
-        queryRequest = {},
         response = [],
-        table,
+        table = this.table(alias),
+        schema = this.schema(alias),
+        request = {
+            'TableName': table.name
+        },
         obj,
         hashKey = {},
         rangeKey = {},
@@ -693,38 +658,23 @@ Model.prototype.query = function(alias, hash, queryOpts){
         attributeValue = {},
         exclusiveStartKey = {},
         attrSchema = this.table(alias).attributeSchema,
-        opts = {},
         attr,
-        fromDynamoObjects = [],
         dynamoType;
-
-    table = this.table(alias);
-    // updateRequest[table.name] = {};
-
-    if (queryOpts) {
-        opts = queryOpts;
-    }
-
-    queryRequest = {
-        'TableName': table.name
-    };
 
     // Add HashKeyValue
     hashKey[table.hashType] = hash.toString();
-    queryRequest.HashKeyValue = hashKey;
+    request.HashKeyValue = hashKey;
 
     // Add RangeKeyCondition
     if(opts.rangeKeyCondition !== undefined){
-        opts.rangeKeyCondition.attributeValueList.forEach(function(attr){
-            dynamoType = attrSchema[attr.attributeName];
+        attributeValueList = opts.rangeKeyCondition.attributeValueList.map(function(attr){
+            var field = schema.field(attr.attributeName);
             attributeValue = {};
-            attributeValue[dynamoType] = this.valueToDynamo(
-                attr.attributeValue, dynamoType);
-            attributeValueList.push(attributeValue);
-            // rangeKey[table.rangeType] = attr.attributeValue.toString();
-            // updateRequest.Key.RangeKeyElement = rangeKey;
+            attributeValue[field.type] = field.export(attr.attributeValue);
+            return attributeValue;
         });
-        queryRequest.RangeKeyCondition = {
+
+        request.RangeKeyCondition = {
             'AttributeValueList': attributeValueList,
             'ComparisonOperator': opts.rangeKeyCondition.comparisonOperator
         };
@@ -732,123 +682,48 @@ Model.prototype.query = function(alias, hash, queryOpts){
 
     // Add Limit
     if(opts.limit !== undefined){
-        queryRequest.Limit = this.valueToDynamo(opts.limit, "N");
+        request.Limit = Number(opts.limit).toString();
     }
 
     // Add ConsistentRead
-    if(opts.consistentRead !== undefined){
-        queryRequest.ConsistentRead = this.valueToDynamo(opts.consistentRead);
+    if(opts.consistentRead){
+        request.ConsistentRead = Number(opts.consistentRead).toString();
     }
 
     // Add ScanIndexForward
     if(opts.scanIndexForward !== undefined){
-        queryRequest.ScanIndexForward = this.valueToDynamo(opts.scanIndexForward);
+        request.ScanIndexForward = Number(opts.scanIndexForward).toString();
     }
 
     // Add ExclusiveStartKey
     if(opts.exclusiveStartKey !== undefined){
         hashKey[table.hashType] = opts.exclusiveStartKey.hashName.toString();
-        queryRequest.ExclusiveStartKey.HashKeyElement = hashKey;
+        request.ExclusiveStartKey.HashKeyElement = hashKey;
         if(opts.exclusiveStartKey.range !== undefined){
             rangeKey[table.rangeType] = opts.exclusiveStartKey.rangeName.toString();
-            queryRequest.ExclusiveStartKey.RangeKeyElement = rangeKey;
+            request.ExclusiveStartKey.RangeKeyElement = rangeKey;
         }
     }
 
     // Add AttributesToGet
     if(opts.attributesToGet !== undefined){
-        queryRequest.AttributesToGet = opts.attributesToGet;
+        request.AttributesToGet = opts.attributesToGet;
     }
 
     // Make the request
-    this.db.query(queryRequest, function(err, data){
-        if(!err){
-            data.Items.forEach(function(item){
-                fromDynamoObjects.push(this.fromDynamo(alias, item));
-            }.bind(this));
-            return d.resolve(fromDynamoObjects);
+    this.db.query(request, function(err, data){
+        if(!d.rejectIfError(err)){
+            return d.resolve(data.Items.map(function(item){
+                var schema = this.schema(alias);
+                return schema.import(item);
+            }.bind(this)));
         }
-        return d.resolve(err);
     }.bind(this));
     return d.promise;
 };
 
-// Model.prototype.deleteAllItems = function(alias) {
-//     var d = when.defer(),
-//         table = this.table(alias),
-//         scanRequest = {
-//             'TableName': table.name
-//         },
-//         deleteRequest = {
-//             'RequestItems': {}
-//         };
 
-//     sequence(this).then(function(next){
-//         this.db.scan(scanRequest, function(err, data){
-//             if(!err){
-//                 next(data.Items);
-//             }
-//             else{
-//                 throw new Error(err);
-//             }
-//         });
-//     }).then(function(next, scanResults){
-
-//         var seperatedRequests = [],
-//             i,
-//             j,
-//             chunkSize = 25;
-
-//         // seperate the scan results into chunks
-//         for (i = 0, j = scanResults.length; i < j; i += chunkSize) {
-//             seperatedRequests.push(scanResults.slice(i, i + chunkSize));
-//         }
-
-
-//         when.all(seperatedRequests.map(function(requests){
-//             var p = when.defer(),
-//                 deleteRequests = [];
-//             requests.forEach(function(item){
-//                 deleteRequests.push({
-//                     'DeleteRequest': {
-//                         'Key': {
-//                             'HashKeyElement': item[table.hashName]
-//                         }
-//                     }
-//                 });
-//             });
-//             deleteRequest.RequestItems[table.name] = deleteRequests;
-//             this.db.batchWriteItem(deleteRequest, function(err, data){
-//                 p.resolve(true);
-//             });
-//             return p.promise;
-//         }.bind(this)), function(){
-//             d.resolve(true);
-//         });
-
-//         d.resolve();
-//     });
-
-//     return d.promise;
-// };
-
-//                     ##      ##    ###    ########  ##    ## #### ##    ##  ######
-//  ##   ##   ##   ##  ##  ##  ##   ## ##   ##     ## ###   ##  ##  ###   ## ##    ##   ##   ##   ##   ##
-//   ## ##     ## ##   ##  ##  ##  ##   ##  ##     ## ####  ##  ##  ####  ## ##          ## ##     ## ##
-// ######### ######### ##  ##  ## ##     ## ########  ## ## ##  ##  ## ## ## ##   #### ######### #########
-//   ## ##     ## ##   ##  ##  ## ######### ##   ##   ##  ####  ##  ##  #### ##    ##    ## ##     ## ##
-//  ##   ##   ##   ##  ##  ##  ## ##     ## ##    ##  ##   ###  ##  ##   ### ##    ##   ##   ##   ##   ##
-//                      ###  ###  ##     ## ##     ## ##    ## #### ##    ##  ######
-
-//                ########     ###    ##    ##  ######   ######## ########   #######  ##     ##  ######
-//                ##     ##   ## ##   ###   ## ##    ##  ##       ##     ## ##     ## ##     ## ##    ##
-//                ##     ##  ##   ##  ####  ## ##        ##       ##     ## ##     ## ##     ## ##
-//                ##     ## ##     ## ## ## ## ##   #### ######   ########  ##     ## ##     ##  ######
-//                ##     ## ######### ##  #### ##    ##  ##       ##   ##   ##     ## ##     ##       ##
-//                ##     ## ##     ## ##   ### ##    ##  ##       ##    ##  ##     ## ##     ## ##    ##
-//                ########  ##     ## ##    ##  ######   ######## ##     ##  #######   #######   ######
-
-
+// # DANGER: THIS WILL DROP YOUR TABLES AND SHOULD ONLY BE USED IN TESTING.
 Model.prototype.recreateTable = function(alias) {
     var d = when.defer(),
         table = this.table(alias),
@@ -885,7 +760,6 @@ Model.prototype.recreateTable = function(alias) {
         this.isTableDeleted(table.name).then(next);
 
     }).then(function(next){
-        console.log('table deleted');
         this.db.createTable(tableRequest, function(err, data){
             if (!err) {
                 return next(data);
@@ -942,8 +816,19 @@ Model.prototype.isTableActive = function(tableName){
     return d.promise;
 };
 
-Model.prototype.batchWriteItem = function(alias){
-    // this.db.batchWriteItem(request, function(err, data){
+Model.prototype.sortObjects = function(objects, values, property){
+    property = property || 'id';
+
+    var objectMap = toMap(objects, property);
+    return values.map(function(value){
+        return objectMap[value] || null;
+    }).filter(function(o){
+        return o !== null;
+    });
 };
 
-module.exports = Model;
+module.exports.Model = Model;
+module.exports.Schema = Schema;
+Object.keys(fields).forEach(function(fieldName){
+    module.exports[fieldName] = fields[fieldName];
+});
