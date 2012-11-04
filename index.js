@@ -36,7 +36,7 @@ var toMap = function(list, property){
     var m = {},
         i = 0;
 
-    for(i=0; i < this.length; i++){
+    for(i=0; i < list.length; i++){
         m[list[i][property]] = list[i];
     }
     return m;
@@ -76,11 +76,13 @@ Model.prototype.objects = function(alias, hash, range){
         var d = when.defer(),
             key = Object.keys(range)[0],
             q = new Query(this, alias, hash);
-            q.fetch().then(function(results){
-                return results.filter(function(res){
-                    return res[key] === range[key];
-                })[0];
-            }, d.reject);
+        q.fetch().then(function(results){
+            d.resolve(results.filter(function(res){
+                return res[key] === range[key];
+            })[0]);
+        }, function(){
+            throw new Error();
+        });
         return d.promise;
 
     }
@@ -108,30 +110,21 @@ Model.prototype.batch = function(){
 
 // Actually connect to dynamo or magneto.
 Model.prototype.getDB = function(key, secret){
-    if(process.env.NODE_ENV === "production"){
+    if(process.env.MAMBO_BACKEND === "magneto"){
+        // Connect to Magneto
+        this.client = dynamo.createClient();
+        this.client.useSession = false;
+        this.db = this.client.get(this.region || "us-east-1");
+        this.db.host = "localhost";
+        this.db.port = process.env.MAGNETO_PORT || 8081;
+    }
+    else {
         // Connect to DynamoDB
         this.client = dynamo.createClient({
             'accessKeyId': key,
             'secretAccessKey': secret
         });
         this.db = this.client.get(this.region || "us-east-1");
-    } else {
-        if(process.env.TEST_DB_ENV === "dynamo"){
-            // Connect to DynamoDB
-            this.client = dynamo.createClient({
-                'accessKeyId': key,
-                'secretAccessKey': secret
-            });
-            this.db = this.client.get(this.region || "us-east-1");
-        }
-        else {
-            // Connect to Magneto
-            this.client = dynamo.createClient();
-            this.client.useSession = false;
-            this.db = this.client.get(this.region || "us-east-1");
-            this.db.host = "localhost";
-            this.db.port = process.env.MAGNETO_PORT || 8081;
-        }
     }
     return this.db;
 };
@@ -238,8 +231,6 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     if(schema.range){
         request.Key.RangeKeyElement[schema.field(schema.range).type] = schema.field(schema.range).export(range);
     }
-
-    console.log(JSON.stringify(request, null, 4));
 
     if(attributesToGet && attributesToGet.length > 0){
         // Get only `attributesToGet`
@@ -404,6 +395,7 @@ Model.prototype.batchGet = function(req){
                         table.hashName);
                 }
             }.bind(this));
+            d.resolve(results);
         }
     }.bind(this));
     return d.promise;
@@ -482,6 +474,7 @@ Model.prototype.batchWrite = function(puts, deletes){
             Object.keys(data.Responses).forEach(function(tableName){
                 success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
             });
+
             d.resolve({'success': success,
                 'unprocessed': data.UnprocessedItems});
         }
@@ -520,22 +513,30 @@ Model.prototype.batchWrite = function(puts, deletes){
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
     var d = when.defer(),
         table = this.table(alias),
-        request = {'TableName': table.name, 'Item': {}},
+        request,
         schema = this.schema(alias);
+
+    if(!table || !schema){
+        throw new Error('Unknown alias ' + alias);
+    }
+    request = {'TableName': table.name, 'Item': {}},
 
     // Assemble the request data
     Object.keys(obj).map(function(key){
         var value = obj[key],
             field = schema.field(key);
 
-        if(isFalsy(value)){ // This is incorrect...
-            value = null;
+        // if(isFalsy(value)){ // This is incorrect...
+        //     value = null;
+        // }
+        if(!field){
+            throw new Error('Unknown field ' + key);
         }
         request.Item[key] = {};
         request.Item[key][field.type] = field.export(value);
     }.bind(this));
 
-    if(expected){
+    if(expected && Object.keys(expected).length > 0){
         request.Expected = {};
         Object.keys(expected).forEach(function(key){
             var field = schema.field(key);
@@ -600,19 +601,24 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
 
     // Add range
     if(opts.range !== undefined){
-        rangeKey[table.rangeType] = opts.range.toString();
+        rangeKey[table.rangeType] = schema.field(schema.range).export(opts.range);
         request.Key.RangeKeyElement = rangeKey;
     }
 
     // Add attributeUpdates
     attrs.forEach(function(attr){
-        var field = schema.field(attr.attributeName),
-            attributeUpdate = {
-                'Value': {},
-                'Action': attr.action || 'PUT'
-            };
-        attributeUpdate.Value[field.type] = field.export(attr.newValue);
-        request.AttributeUpdates[attr.attributeName] = attributeUpdate;
+        // if(attr.attributeName != schema.hash && attr.attributeName != schema.range){
+            var field = schema.field(attr.attributeName),
+                attributeUpdate = {
+                    'Value': {},
+                    'Action': attr.action || 'PUT'
+                };
+            if(!field){
+                throw new Error('Unknown field ' + attr.attributeName);
+            }
+            attributeUpdate.Value[field.type] = field.export(attr.newValue);
+            request.AttributeUpdates[attr.attributeName] = attributeUpdate;
+        // }
     }.bind(this));
 
     // Add expectedValues for conditional update
@@ -733,10 +739,10 @@ Model.prototype.query = function(alias, hash, opts){
     // Make the request
     this.db.query(request, function(err, data){
         if(!d.rejectIfError(err)){
-            return d.resolve(data.Items.map(function(item){
-                var schema = this.schema(alias);
+            var items = data.Items.map(function(item){
                 return schema.import(item);
-            }.bind(this)));
+            }.bind(this));
+            return d.resolve(items);
         }
     }.bind(this));
     return d.promise;

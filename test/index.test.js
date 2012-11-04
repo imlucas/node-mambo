@@ -117,4 +117,19 @@ describe('Model', function(){
             });
         });
     });
+
+    it("should sort results", function(){
+        var ids = [30326673248, 20327673988, 1234569083, 53387294087],
+            objects = [{"id": 20327673988},
+                {"id": 1234569083},
+                {"id": 30326673248},
+                {"id": 53387294087}],
+            property = 'id',
+            sortedObjects = Song.sortObjects(objects, ids, property),
+            i;
+
+        for (i=0; i<ids.length; i++){
+            assert.equal(ids[i], sortedObjects[i].id);
+        }
+    });
 });
