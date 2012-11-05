@@ -90,7 +90,7 @@ describe('UpdateQuery', function(){
                 {
                     'action': 'ADD',
                     'attributeName': 'tags',
-                    'newValue': 'chillwave'
+                    'newValue': ['chillwave']
                 }
             ]);
         });
@@ -101,12 +101,7 @@ describe('UpdateQuery', function(){
                 {
                     'action': 'ADD',
                     'attributeName': 'tags',
-                    'newValue': 'chillwave'
-                },
-                {
-                    'action': 'ADD',
-                    'attributeName': 'tags',
-                    'newValue': 'dance'
+                    'newValue': ['chillwave', 'dance']
                 }
             ]);
         });

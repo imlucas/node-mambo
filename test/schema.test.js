@@ -37,12 +37,12 @@ describe('Schema', function(){
 
     it('should import raw data and marshall properly', function(){
         var row = {
-                'id': '1',
-                'title': 'Silence in a Sweater',
-                'created': 1351373348257,
-                'recent_loves': '[{"username": "lucas"}]'
+                'id': {'N': '1'},
+                'title': {'S': 'Silence in a Sweater'},
+                'created': {'N': 1351373348257},
+                'recent_loves': {"S": '[{"username": "lucas"}]'}
             },
-            created = new Date(row.created),
+            created = new Date(row.created.N),
             s = new Schema('Song', 'song', 'id', {
                 'id': NumberField,
                 'title': StringField,

@@ -9,7 +9,7 @@
     "url": "git://github.com/exfm/node-mambo.git"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha"
+    "test": "MAMBO_BACKEND=magneto ./node_modules/.bin/mocha"
   },
   "dependencies": {
     "when": "git://github.com/exfm/when.git",
