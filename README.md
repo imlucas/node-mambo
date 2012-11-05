@@ -12,7 +12,7 @@ Little wrapper for dynamo models
 
     git clone
     npm install
-    mocha
+    npm test
 
 
 ## Example
