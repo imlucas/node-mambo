@@ -10,7 +10,9 @@ var dynamo = require("dynamo"),
     Batch = require('./lib/batch'),
     Schema = require('./lib/schema'),
     fields = require('./lib/fields'),
-    Inserter = require('./lib/inserter');
+    Inserter = require('./lib/inserter'),
+    util = require('util'),
+    EventEmitter = require('events').EvevntEmitter;
 
 // Setup logger
 var log = winston.loggers.add("mambo", {
@@ -55,6 +57,7 @@ function Model(){
 
     this.tablesByName = {};
 }
+util.inherits(Model, EventEmitter);
 
 // Grab a schema definition by alias.
 Model.prototype.schema = function(alias){
@@ -389,11 +392,10 @@ Model.prototype.batchGet = function(req){
                     return schema.import(dynamoObj);
                 }.bind(this));
 
-                // Sort the results if the ordered flag is true
-                if(tableData.ordered){
-                    results = this.sortObjects(results, tableData.hashes,
-                        table.hashName);
-                }
+                // Sort the results
+                results = this.sortObjects(results, tableData.hashes,
+                    table.hashName);
+
             }.bind(this));
             d.resolve(results);
         }
