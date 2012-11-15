@@ -2,7 +2,7 @@
   "author": "Lucas Hrabovsky <lucas@ex.fm>",
   "name": "mambo",
   "description": "Little wrapper for dynamo models",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "homepage": "http://github.com/exfm/node-mambo",
   "repository": {
     "type": "git",

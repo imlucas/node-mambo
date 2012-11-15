@@ -12,7 +12,7 @@ var dynamo = require("dynamo"),
     fields = require('./lib/fields'),
     Inserter = require('./lib/inserter'),
     util = require('util'),
-    EventEmitter = require('events').EvevntEmitter;
+    EventEmitter = require('events').EventEmitter;
 
 // Setup logger
 var log = winston.loggers.add("mambo", {
