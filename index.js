@@ -434,6 +434,9 @@ Model.prototype.batchWrite = function(puts, deletes){
     Object.keys(puts).forEach(function(alias){
         var table = this.table(alias),
             schema = this.schema(alias);
+        if(!table){
+            throw new Error('Dont know alias ' + alias);
+        }
 
         if(!req.RequestItems.hasOwnProperty(table.name)){
             req.RequestItems[table.name] = [];

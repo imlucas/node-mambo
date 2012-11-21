@@ -7,7 +7,8 @@ var Schema = require('../lib/schema'),
     StringField = fields.StringField,
     NumberField = fields.NumberField,
     JSONField = fields.JSONField,
-    DateField = fields.DateField;
+    DateField = fields.DateField,
+    BooleanField = fields.BooleanField;
 
 describe('Schema', function(){
     it('should construct fields just using the classnames', function(){
@@ -77,5 +78,25 @@ describe('Schema', function(){
         assert.equal(data.title.S, 'Silence in a Sweater');
         assert.equal(data.created.N, created.getTime());
         assert.equal(data.recent_loves.S.length, JSON.stringify(row.recent_loves).length);
+    });
+
+    it('should export nulls correctly', function(){
+        var schema = new Schema('Song', 'song', 'id', {
+                'id': NumberField,
+                'title': StringField,
+                'created': DateField,
+                'recent_loves': JSONField,
+                'exists': BooleanField
+            }), data, imported;
+
+        data = schema.export({});
+        imported = schema.import(data);
+
+        assert.equal(imported.id, 0);
+        assert.equal(imported.title, null);
+        assert.equal(imported.created, null);
+        assert.equal(imported.recent_loves, null);
+        assert.equal(imported.exists, null);
+
     });
 });
