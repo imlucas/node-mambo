@@ -23,17 +23,6 @@ var log = winston.loggers.add("mambo", {
     }
 });
 
-// Returns true if item is not undefined, null, "", [], or {}.
-var isFalsy = function(item){
-    if(item === false){return true;}
-    if(item === 0){return true;}
-    if(!item){return false;}
-    if((_.isObject(item)) && (_.isEmpty(item))){
-        return false;
-    }
-    return true;
-};
-
 var toMap = function(list, property){
     var m = {},
         i = 0;
@@ -42,6 +31,17 @@ var toMap = function(list, property){
         m[list[i][property]] = list[i];
     }
     return m;
+};
+
+var sortObjects = function(objects, values, property){
+    property = property || 'id';
+
+    var objectMap = toMap(objects, property);
+    return values.map(function(value){
+        return objectMap[value] || null;
+    }).filter(function(o){
+        return o !== null;
+    });
 };
 
 // Models have many tables.
@@ -164,6 +164,8 @@ Model.prototype.connect = function(key, secret, prefix, region){
     }.bind(this));
 
     this.connected = true;
+
+    this.emit('connect');
     return this;
 };
 
@@ -393,7 +395,7 @@ Model.prototype.batchGet = function(req){
                 }.bind(this));
 
                 // Sort the results
-                results = this.sortObjects(results, tableData.hashes,
+                results = sortObjects(results, tableData.hashes,
                     table.hashName);
 
             }.bind(this));
@@ -531,12 +533,10 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
         var value = obj[key],
             field = schema.field(key);
 
-        // if(isFalsy(value)){ // This is incorrect...
-        //     value = null;
-        // }
         if(!field){
             throw new Error('Unknown field ' + key);
         }
+
         request.Item[key] = {};
         request.Item[key][field.type] = field.export(value);
     }.bind(this));
@@ -845,17 +845,6 @@ Model.prototype.isTableActive = function(tableName){
         }
     });
     return d.promise;
-};
-
-Model.prototype.sortObjects = function(objects, values, property){
-    property = property || 'id';
-
-    var objectMap = toMap(objects, property);
-    return values.map(function(value){
-        return objectMap[value] || null;
-    }).filter(function(o){
-        return o !== null;
-    });
 };
 
 module.exports.Model = Model;
