@@ -5,7 +5,9 @@ var assert = require('assert');
 var Schema = require('../lib/schema'),
     fields = require('../lib/fields'),
     StringField = fields.StringField,
+    StringSetField = fields.StringSetField,
     NumberField = fields.NumberField,
+    NumberSetField = fields.NumberSetField,
     JSONField = fields.JSONField,
     DateField = fields.DateField,
     BooleanField = fields.BooleanField;
@@ -80,23 +82,26 @@ describe('Schema', function(){
         assert.equal(data.recent_loves.S.length, JSON.stringify(row.recent_loves).length);
     });
 
-    it('should export nulls correctly', function(){
+    it('should exports/imports nulls correctly', function(){
         var schema = new Schema('Song', 'song', 'id', {
                 'id': NumberField,
                 'title': StringField,
                 'created': DateField,
                 'recent_loves': JSONField,
-                'exists': BooleanField
+                'exists': BooleanField,
+                'some_numbers': NumberSetField,
+                'tags': StringSetField
             }), data, imported;
 
         data = schema.export({});
+        // console.log(data);
         imported = schema.import(data);
+        // console.log(imported);
 
         assert.equal(imported.id, 0);
         assert.equal(imported.title, null);
         assert.equal(imported.created, null);
         assert.equal(imported.recent_loves, null);
         assert.equal(imported.exists, null);
-
     });
 });
