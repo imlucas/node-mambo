@@ -30,12 +30,14 @@ describe('Schema', function(){
             'id': NumberField,
             'title': StringField,
             'created': DateField,
-            'recent_loves': JSONField
+            'recent_loves': JSONField,
+            'loved_ids': NumberSetField
         });
         assert.equal(typeof s.fields.id, 'object');
         assert.equal(typeof s.fields.title, 'object');
         assert.equal(typeof s.fields.created, 'object');
         assert.equal(typeof s.fields.recent_loves, 'object');
+        assert.equal(typeof s.fields.loved_ids, 'object');
     });
 
     it('should import raw data and marshall properly', function(){
@@ -43,14 +45,16 @@ describe('Schema', function(){
                 'id': {'N': '1'},
                 'title': {'S': 'Silence in a Sweater'},
                 'created': {'N': 1351373348257},
-                'recent_loves': {"S": '[{"username": "lucas"}]'}
+                'recent_loves': {"S": '[{"username": "lucas"}]'},
+                'loved_ids': {'NS': [1, 2, 3, 4]}
             },
             created = new Date(row.created.N),
             s = new Schema('Song', 'song', 'id', {
                 'id': NumberField,
                 'title': StringField,
                 'created': DateField,
-                'recent_loves': JSONField
+                'recent_loves': JSONField,
+                'loved_ids': NumberSetField
             }),
             data = s.import(row);
 
@@ -58,6 +62,7 @@ describe('Schema', function(){
         assert.equal(data.title, 'Silence in a Sweater');
         assert.equal(data.created.toString(), created.toString());
         assert.equal(data.recent_loves.length, 1);
+        assert.equal(data.loved_ids[0], 1);
     });
 
     it('should export data properly', function(){
