@@ -350,7 +350,7 @@ Model.prototype.batchGet = function(req){
         request = {
             'RequestItems': {}
         },
-        results = [],
+        results = {},
         table,
         obj;
 
@@ -368,10 +368,9 @@ Model.prototype.batchGet = function(req){
 
         // Add ranges
         if(item.ranges){
-            item.ranges.forEach(function(range){
-                var rangeKey = {'RangeKeyElement': {}};
-                rangeKey.RangeKeyElement[table.rangeType] = range.toString();
-                request.RequestItems[table.name].Keys.push(rangeKey);
+            item.ranges.forEach(function(range, index){
+                request.RequestItems[table.name].Keys[index].RangeKeyElement = {};
+                request.RequestItems[table.name].Keys[index].RangeKeyElement[table.rangeType] = range.toString();
             });
         }
 
@@ -380,7 +379,6 @@ Model.prototype.batchGet = function(req){
             request.RequestItems[table.name].AttributesToGet = item.attributesToGet;
         }
     }.bind(this));
-
     // Make the request
     this.db.batchGetItem(request, function(err, data){
         if(!d.rejectIfError(err)){
@@ -390,13 +388,13 @@ Model.prototype.batchGet = function(req){
                     schema = this.schema(tableData.alias),
                     items = data.Responses[table.name].Items;
 
-                results = items.map(function(dynamoObj){
+                results[tableData.alias] = items.map(function(dynamoObj){
                     return schema.import(dynamoObj);
                 }.bind(this));
 
                 // Sort the results
-                results = sortObjects(results, tableData.hashes,
-                    table.hashName);
+                results[tableData.alias] = sortObjects(results[tableData.alias],
+                    tableData.hashes, table.hashName);
 
             }.bind(this));
             d.resolve(results);

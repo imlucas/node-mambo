@@ -79,5 +79,15 @@ describe('Batch', function(){
         }, Error);
     });
 
+    it("should handle gets", function(){
+        var batch = Song.batch().get('song', 1);
+        assert.deepEqual(batch.gets, {
+            'song': {
+                'alias': 'song',
+                'hashes': [1]
+            }
+        });
+    });
+
 
 });
