@@ -99,14 +99,18 @@ describe('Schema', function(){
             }), data, imported;
 
         data = schema.export({});
-        // console.log(data);
+
+        assert(data.tags === undefined);
+        assert(data.some_numbers === undefined);
+
         imported = schema.import(data);
-        // console.log(imported);
 
         assert.equal(imported.id, 0);
         assert.equal(imported.title, null);
         assert.equal(imported.created, null);
         assert.equal(imported.recent_loves, null);
         assert.equal(imported.exists, null);
+        assert.deepEqual(imported.tags, []);
+        assert.deepEqual(imported.some_numbers, []);
     });
 });
