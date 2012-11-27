@@ -519,25 +519,13 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     var d = when.defer(),
         table = this.table(alias),
         request,
-        schema = this.schema(alias);
+        schema = this.schema(alias),
+        clean = schema.export(obj);
 
     if(!table || !schema){
         throw new Error('Unknown alias ' + alias);
     }
-    request = {'TableName': table.name, 'Item': {}},
-
-    // Assemble the request data
-    Object.keys(obj).map(function(key){
-        var value = obj[key],
-            field = schema.field(key);
-
-        if(!field){
-            throw new Error('Unknown field ' + key);
-        }
-
-        request.Item[key] = {};
-        request.Item[key][field.type] = field.export(value);
-    }.bind(this));
+    request = {'TableName': table.name, 'Item': schema.export(obj)};
 
     if(expected && Object.keys(expected).length > 0){
         request.Expected = {};
