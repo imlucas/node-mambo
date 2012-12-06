@@ -3,7 +3,6 @@
 var dynamo = require("dynamo"),
     when = require("when"),
     sequence = require("sequence"),
-    winston = require("winston"),
     _ = require("underscore"),
     Query = require('./lib/query'),
     UpdateQuery = require('./lib/update-query'),
@@ -12,37 +11,10 @@ var dynamo = require("dynamo"),
     fields = require('./lib/fields'),
     Inserter = require('./lib/inserter'),
     util = require('util'),
-    EventEmitter = require('events').EventEmitter;
+    EventEmitter = require('events').EventEmitter,
+    plog = require('plog'),
+    log = plog('mambo').level('error');
 
-// Setup logger
-var log = winston.loggers.add("mambo", {
-    console: {
-        'level': "silly",
-        'timestamp': false,
-        'colorize': true
-    }
-});
-
-var toMap = function(list, property){
-    var m = {},
-        i = 0;
-
-    for(i=0; i < list.length; i++){
-        m[list[i][property]] = list[i];
-    }
-    return m;
-};
-
-var sortObjects = function(objects, values, property){
-    property = property || 'id';
-
-    var objectMap = toMap(objects, property);
-    return values.map(function(value){
-        return objectMap[value] || null;
-    }).filter(function(o){
-        return o !== null;
-    });
-};
 
 // Models have many tables.
 function Model(){
@@ -114,12 +86,14 @@ Model.prototype.batch = function(){
 // Actually connect to dynamo or magneto.
 Model.prototype.getDB = function(key, secret){
     if(process.env.MAMBO_BACKEND === "magneto"){
+        log.debug('Using magneto');
         // Connect to Magneto
         this.client = dynamo.createClient();
         this.client.useSession = false;
         this.db = this.client.get(this.region || "us-east-1");
         this.db.host = "localhost";
         this.db.port = process.env.MAGNETO_PORT || 8081;
+        log.debug('Connected to magneto on ' +this.db.host+ ':' + this.db.port);
     }
     else {
         // Connect to DynamoDB
@@ -128,18 +102,24 @@ Model.prototype.getDB = function(key, secret){
             'secretAccessKey': secret
         });
         this.db = this.client.get(this.region || "us-east-1");
+        log.debug('Dynamo client created.');
     }
     return this.db;
 };
 
 Model.prototype.connect = function(key, secret, prefix, region){
+    log.debug('Connecting...');
+
     this.prefix = prefix;
     this.region = region;
     this.getDB(key, secret);
 
+    log.debug('Reading schemas...');
     this.schemas.forEach(function(schema){
         var tableName = (this.prefix || "") + schema.tableName,
             table = this.db.get(tableName);
+
+        log.silly('Table name: ' + tableName);
 
         _.extend(table, {
             'name': table.TableName,
@@ -164,6 +144,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
     }.bind(this));
 
     this.connected = true;
+    log.debug('Ready.  Emitting connect.');
 
     this.emit('connect');
     return this;
@@ -222,6 +203,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
         table = this.table(alias),
         schema = this.schema(alias),
         request;
+    log.debug('Get `'+alias+'` with hash `'+hash+'` and range `'+range+'`');
 
     // Assemble the request data
     request = {
@@ -245,11 +227,17 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
         request.ConsistentRead = consistentRead;
     }
 
+    log.silly('Built GET_ITEM request: ' + util.inspect(request, false, 5));
+
     // Make the request
     this.db.getItem(request, function(err, data){
+        log.silly('GET_ITEM returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             return d.resolve((data.Item !== undefined) ?
                     this.schema(alias).import(data.Item) : null);
+        }
+        else{
+            log.error('GET_ITEM: ' + err.message + '\n' + err.stack);
         }
     }.bind(this));
 
@@ -269,6 +257,9 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 //        })
 Model.prototype.delete = function(alias, hash, opts){
     opts = opts || {};
+
+    log.debug('Delete `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
+
     var d = when.defer(),
         table = this.table(alias),
         request = {
@@ -304,15 +295,38 @@ Model.prototype.delete = function(alias, hash, opts){
             request.Expected[attr.attributeName] = expectedAttribute;
         }.bind(this));
     }
+    log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
     this.db.deleteItem(request, function(err, data){
+        log.silly('DELETE_ITEM returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             return d.resolve(data);
+        }
+        else{
+            log.error('DELETE_ITEM: ' + err.message + '\n' + err.stack);
         }
     }.bind(this));
     return d.promise;
 };
+
+var sortObjects = function(objects, values, property){
+    property = property || 'id';
+
+    var objectMap = {},
+        i = 0;
+
+    for(i=0; i < objects.length; i++){
+        objectMap[objects[i][property]] = objects[i];
+    }
+
+    return values.map(function(value){
+        return objectMap[value] || null;
+    }).filter(function(o){
+        return o !== null;
+    });
+};
+
 
 // Accepts an array of objects
 // Each object should look like this:
@@ -346,6 +360,7 @@ Model.prototype.delete = function(alias, hash, opts){
 //     },
 // ]
 Model.prototype.batchGet = function(req){
+    log.debug('Batch get ' + util.inspect(req, false, 5));
     var d = when.defer(),
         request = {
             'RequestItems': {}
@@ -355,7 +370,6 @@ Model.prototype.batchGet = function(req){
         obj;
 
     // Assemble the request data
-
     req.forEach(function(item){
         table = this.table(item.alias);
         request.RequestItems[table.name] = {'Keys': []};
@@ -379,8 +393,12 @@ Model.prototype.batchGet = function(req){
             request.RequestItems[table.name].AttributesToGet = item.attributesToGet;
         }
     }.bind(this));
+
+    log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
+
     // Make the request
     this.db.batchGetItem(request, function(err, data){
+        log.silly('BATCH_GET returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             // translate the response from dynamo format to exfm format
             req.forEach(function(tableData){
@@ -398,6 +416,9 @@ Model.prototype.batchGet = function(req){
 
             }.bind(this));
             d.resolve(results);
+        }
+        else{
+            log.error('BATCH_GET: ' + err.message + '\n' + err.stack);
         }
     }.bind(this));
     return d.promise;
@@ -424,6 +445,7 @@ Model.prototype.batchGet = function(req){
 //     }
 // );
 Model.prototype.batchWrite = function(puts, deletes){
+    log.debug('Batch write: puts`'+util.inspect(puts, false, 10)+'`, deletes`'+util.inspect(deletes, false, 10)+'` ');
     var d = when.defer(),
         self = this,
         req = {
@@ -472,7 +494,11 @@ Model.prototype.batchWrite = function(puts, deletes){
     if(totalOps > 25){
         throw new Error(totalOps + ' is too many for one batch!');
     }
+
+    log.silly('Built BATCH_WRITE request: ' + util.inspect(req, false, 10));
+
     this.db.batchWriteItem(req, function(err, data){
+        log.silly('BATCH_WRITE returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             var success = {};
 
@@ -482,6 +508,9 @@ Model.prototype.batchWrite = function(puts, deletes){
 
             d.resolve({'success': success,
                 'unprocessed': data.UnprocessedItems});
+        }
+        else{
+            log.error('BATCH_WRITE: ' + err.message + '\n' + err.stack);
         }
     });
     return d.promise;
@@ -516,6 +545,7 @@ Model.prototype.batchWrite = function(puts, deletes){
 // }
 // returnValues: See AWS docs for an explanation.
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
+    log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
     var d = when.defer(),
         table = this.table(alias),
         request,
@@ -543,10 +573,16 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
         request.ReturnValues = "ALL_OLD";
     }
 
+    log.silly('Built PUT request: ' + util.inspect(request, false, 10));
+
     // Make the request
     this.db.putItem(request, function(err, data){
+        log.silly('PUT returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             return d.resolve(obj);
+        }
+        else{
+            log.error('PUT: ' + err.message + '\n' + err.stack);
         }
     });
     return d.promise;
@@ -568,6 +604,9 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
 //    })
 Model.prototype.updateItem = function(alias, hash, attrs, opts){
     opts = opts || {};
+
+    log.debug('Update `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
+    log.debug(util.inspect(attrs, false, 5));
 
     var d = when.defer(),
         response = [],
@@ -629,13 +668,19 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         }.bind(this));
     }
 
+    log.silly('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
+
     // Make the request
     this.db.updateItem(request, function(err, data){
+        log.silly('UPDATE_ITEM returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             if (opts.returnValues !== undefined) {
                 return d.resolve(schema.import(data.Attributes));
             }
             return d.resolve(data);
+        }
+        else{
+            log.error('UPDATE_ITEM: ' + err.message + '\n' + err.stack);
         }
     }.bind(this));
     return d.promise;
@@ -661,6 +706,10 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
 // })
 Model.prototype.query = function(alias, hash, opts){
     opts = opts || {};
+
+    log.debug('Query `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
+    log.silly('Query options: ' + util.inspect(opts, false, 5));
+
     var d = when.defer(),
         response = [],
         table = this.table(alias),
@@ -727,13 +776,19 @@ Model.prototype.query = function(alias, hash, opts){
         request.AttributesToGet = opts.attributesToGet;
     }
 
+    log.silly('Built QUERY request: ' + util.inspect(request, false, 10));
+
     // Make the request
     this.db.query(request, function(err, data){
+        log.silly('QUERY returned: err: ' + err + ', data: ' + util.inspect(data, false, 5));
         if(!d.rejectIfError(err)){
             var items = data.Items.map(function(item){
                 return schema.import(item);
             }.bind(this));
             return d.resolve(items);
+        }
+        else{
+            log.error('QUERY: ' + err.message + '\n' + err.stack);
         }
     }.bind(this));
     return d.promise;
