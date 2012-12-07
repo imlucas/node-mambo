@@ -216,6 +216,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     request.Key.HashKeyElement[schema.field(schema.hash).type] = schema.field(schema.hash).export(hash);
 
     if(schema.range){
+        request.Key.RangeKeyElement = {};
         request.Key.RangeKeyElement[schema.field(schema.range).type] = schema.field(schema.range).export(range);
     }
 
