@@ -19,12 +19,11 @@ var aws = require("plata"),
 // Models have many tables.
 function Model(){
     this.connected = false;
-    this.tables = {};
     this.schemas = Array.prototype.slice.call(arguments, 0);
-    this.schemasByName = {};
+    this.schemasByAlias = {};
 
     this.schemas.forEach(function(schema){
-        this.schemasByName[schema.alias] = schema;
+        this.schemasByAlias[schema.alias] = schema;
     }.bind(this));
 
     this.tablesByName = {};
@@ -33,12 +32,7 @@ util.inherits(Model, EventEmitter);
 
 // Grab a schema definition by alias.
 Model.prototype.schema = function(alias){
-    return this.schemasByName[alias];
-};
-
-// Get a dynamo table object by alias.
-Model.prototype.table = function(alias){
-    return this.tables[alias];
+    return this.schemasByAlias[alias];
 };
 
 Model.prototype.tableNameToAlias = function(name){
@@ -85,14 +79,15 @@ Model.prototype.batch = function(){
 
 // Actually connect to dynamo or magneto.
 Model.prototype.getDB = function(key, secret){
-    this.db = aws.dynamo;
     aws.connect({'key': key, 'secret': secret});
+    this.db = aws.dynamo;
     log.debug('Dynamo client created.');
 
     if(process.env.MAMBO_BACKEND === "magneto"){
         log.debug('Using magneto');
         this.db.port = process.env.MAGNETO_PORT || 8081;
-        this.db.host = "localhost:" + this.port;
+        this.db.host = "localhost";
+        this.db.protocol = 'http';
         log.debug('Connected to magneto on ' +this.db.host+ ':' + this.db.port);
     }
     return this.db;
@@ -100,6 +95,7 @@ Model.prototype.getDB = function(key, secret){
 
 Model.prototype.connect = function(key, secret, prefix, region){
     log.debug('Connecting...');
+    var self = this;
 
     this.prefix = prefix;
     this.region = region;
@@ -107,34 +103,11 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
     log.debug('Reading schemas...');
     this.schemas.forEach(function(schema){
-        var tableName = (this.prefix || "") + schema.tableName,
-            table = {};
-
-        // @todo (lucas) Now that this is on plata, dont think we need
-        // most/all of this craziness.
-        log.silly('Table name: ' + tableName);
-
-        _.extend(table, {
-            'name': table.TableName,
-            'alias': schema.alias,
-            'hashType': schema.hashType,
-            'hashName': schema.hash,
-            'key': {
-                'HashKeyElement': {}
-            }
-        });
-        table.key.HashKeyElement[schema.hashType] = schema.hash;
-
-        if(schema.range){
-            _.extend(table, {
-                'rangeType': schema.rangeType,
-                'rangeName': schema.range
-            });
-            table.key.HashKeyElement[schema.rangeType] = schema.range;
-        }
-
-        this.tables[table.alias] = this.tablesByName[tableName] = table;
-    }.bind(this));
+        var tableName = (self.prefix || "") + schema.tableName;
+        schema.tableName = tableName;
+        self.schemasByAlias[schema.alias] = schema;
+        self.tablesByName[tableName] = schema;
+    });
 
     this.connected = true;
     log.debug('Ready.  Emitting connect.');
@@ -146,7 +119,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
 // Create all tables as defined by this models schemas.
 Model.prototype.createAll = function(){
     var d = when.defer();
-    when.all(Object.keys(this.tables).map(this.ensureTableMagneto.bind(this)),
+    when.all(Object.keys(this.schemasByAlias).map(this.ensureTableMagneto.bind(this)),
         d.resolve);
 
     return d.promise;
@@ -155,19 +128,25 @@ Model.prototype.createAll = function(){
 // Checks if all tables exist in magneto.  If a table doesn't exist
 // it will be created.
 Model.prototype.ensureTableMagneto = function(alias){
-    return this.db.listTables().then(function(next, data){
-        if(data.TableNames.indexOf(this.table(alias).name) !== -1){
+    var self = this;
+    log.silly('Ensure magneto table...' + alias);
+    return this.db.listTables().then(function(data){
+        if(data.TableNames.indexOf(self.schema(alias).tableName) !== -1){
+            log.silly('Table already exists ' + alias);
             return false;
         }
+        var schema = self.schema(alias);
+        log.silly('Table doesnt exist.  Creating...');
         var req = {
-            'TableName': this.table(alias).name,
-            'KeySchema': this.table(alias).key,
+            'TableName': schema.tableName,
+            'KeySchema': schema.schema,
             'ProvisionedThroughput':{
                 'ReadCapacityUnits':5,
                 'WriteCapacityUnits':10
             }
         };
-        return this.db.createTable(req);
+        log.silly('Calling to create ' + JSON.stringify(req));
+        return self.db.createTable(req);
     });
 };
 
@@ -181,24 +160,23 @@ Model.prototype.ensureTableMagneto = function(alias){
 // - object. If empty, get all attributes.
 // - consistentRead: boolean
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
-    var table = this.table(alias),
-        schema = this.schema(alias),
+    var schema = this.schema(alias),
         request;
     log.debug('Get `'+alias+'` with hash `'+hash+'` and range `'+range+'`');
 
     // Assemble the request data
     request = {
-        'TableName': table.name,
+        'TableName': schema.tableName,
         'Key': {
             'HashKeyElement': {}
         }
     };
 
-    request.Key.HashKeyElement[schema.field(schema.hash).type] = schema.field(schema.hash).export(hash);
+    request.Key.HashKeyElement[schema.hashType] = schema.field(schema.hash).export(hash);
 
     if(schema.range){
         request.Key.RangeKeyElement = {};
-        request.Key.RangeKeyElement[schema.field(schema.range).type] = schema.field(schema.range).export(range);
+        request.Key.RangeKeyElement[schema.rangeType] = schema.field(schema.range).export(range);
     }
 
     if(attributesToGet && attributesToGet.length > 0){
@@ -236,9 +214,9 @@ Model.prototype.delete = function(alias, hash, opts){
 
     log.debug('Delete `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
 
-    var table = this.table(alias),
+    var schema = this.schema(alias),
         request = {
-            'TableName': table.name,
+            'TableName': schema.tableName,
             'Key': {
                 'HashKeyElement': {}
             },
@@ -246,12 +224,12 @@ Model.prototype.delete = function(alias, hash, opts){
         };
 
     // Add hash
-    request.Key.HashKeyElement[table.hashType] = hash.toString();
+    request.Key.HashKeyElement[schema.hashType] = hash.toString();
 
     // Add range
     if(opts.range){
         request.Key.RangeKeyElement = {};
-        request.Key.RangeKeyElement[table.rangeType] = opts.range.toString();
+        request.Key.RangeKeyElement[schema.rangeType] = opts.range.toString();
     }
 
     // Add expectedValues for conditional delete
@@ -337,31 +315,31 @@ Model.prototype.batchGet = function(req){
             'RequestItems': {}
         },
         results = {},
-        table,
+        schema,
         obj;
 
     // Assemble the request data
     req.forEach(function(item){
-        table = this.table(item.alias);
-        request.RequestItems[table.name] = {'Keys': []};
+        schema = this.schema(item.alias);
+        request.RequestItems[schema.tableName] = {'Keys': []};
         // Add hashes
         item.hashes.forEach(function(hash){
             var hashKey = {'HashKeyElement': {}};
-            hashKey.HashKeyElement[table.hashType] = hash.toString();
-            request.RequestItems[table.name].Keys.push(hashKey);
+            hashKey.HashKeyElement[schema.hashType] = hash.toString();
+            request.RequestItems[schema.tableName].Keys.push(hashKey);
         });
 
         // Add ranges
         if(item.ranges){
             item.ranges.forEach(function(range, index){
-                request.RequestItems[table.name].Keys[index].RangeKeyElement = {};
-                request.RequestItems[table.name].Keys[index].RangeKeyElement[table.rangeType] = range.toString();
+                request.RequestItems[schema.tableName].Keys[index].RangeKeyElement = {};
+                request.RequestItems[schema.tableName].Keys[index].RangeKeyElement[schema.rangeType] = range.toString();
             });
         }
 
         // Add attributesToGet
         if(item.attributesToGet){
-            request.RequestItems[table.name].AttributesToGet = item.attributesToGet;
+            request.RequestItems[schema.tableName].AttributesToGet = item.attributesToGet;
         }
     }.bind(this));
 
@@ -373,9 +351,8 @@ Model.prototype.batchGet = function(req){
 
         // translate the response from dynamo format to exfm format
         req.forEach(function(tableData){
-            var table = this.table(tableData.alias),
-                schema = this.schema(tableData.alias),
-                items = data.Responses[table.name].Items;
+            var schema = this.schema(tableData.alias),
+                items = data.Responses[schema.tableName].Items;
 
             results[tableData.alias] = items.map(function(dynamoObj){
                 return schema.import(dynamoObj);
@@ -383,7 +360,7 @@ Model.prototype.batchGet = function(req){
 
             // Sort the results
             results[tableData.alias] = sortObjects(results[tableData.alias],
-                tableData.hashes, table.hashName);
+                tableData.hashes, schema.hash);
 
         }.bind(this));
         return results;
@@ -422,17 +399,13 @@ Model.prototype.batchWrite = function(puts, deletes){
         totalOps = 0;
 
     Object.keys(puts).forEach(function(alias){
-        var table = this.table(alias),
-            schema = this.schema(alias);
-        if(!table){
-            throw new Error('Dont know alias ' + alias);
-        }
+        var schema = this.schema(alias);
 
-        if(!req.RequestItems.hasOwnProperty(table.name)){
-            req.RequestItems[table.name] = [];
+        if(!req.RequestItems.hasOwnProperty(schema.tableName)){
+            req.RequestItems[schema.tableName] = [];
         }
         puts[alias].forEach(function(put){
-            req.RequestItems[table.name].push({
+            req.RequestItems[schema.tableName].push({
                 'PutRequest': {
                     'Item': schema.export(put)
                 }
@@ -442,15 +415,14 @@ Model.prototype.batchWrite = function(puts, deletes){
     }.bind(this));
 
     Object.keys(deletes).forEach(function(alias){
-        var table = this.table(alias),
-            schema = this.schema(alias);
+        var schema = this.schema(alias);
 
-        if(!req.RequestItems.hasOwnProperty(table.name)){
-            req.RequestItems[table.name] = [];
+        if(!req.RequestItems.hasOwnProperty(schema.tableName)){
+            req.RequestItems[schema.tableName] = [];
         }
 
         deletes[alias].forEach(function(del){
-            req.RequestItems[table.name].push({
+            req.RequestItems[schema.tableName].push({
                 'DeleteRequest': {
                     'Key': schema.exportKey(del)
                 }
@@ -507,15 +479,11 @@ Model.prototype.batchWrite = function(puts, deletes){
 // returnValues: See AWS docs for an explanation.
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
-    var table = this.table(alias),
-        request,
+    var request,
         schema = this.schema(alias),
         clean = schema.export(obj);
 
-    if(!table || !schema){
-        throw new Error('Unknown alias ' + alias);
-    }
-    request = {'TableName': table.name, 'Item': schema.export(obj)};
+    request = {'TableName': schema.tableName, 'Item': schema.export(obj)};
 
     if(expected && Object.keys(expected).length > 0){
         request.Expected = {};
@@ -566,10 +534,9 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     log.debug(util.inspect(attrs, false, 5));
 
     var response = [],
-        table = this.table(alias),
         schema = this.schema(alias),
         request = {
-            'TableName': table.name,
+            'TableName': schema.tableName,
             'Key': {},
             'AttributeUpdates': {},
             'ReturnValues': opts.returnValues || 'NONE'
@@ -578,16 +545,15 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         hashKey = {},
         rangeKey = {},
         expectedAttributes = {},
-        expectedAttribute = {},
-        attrSchema = this.table(alias).attributeSchema;
+        expectedAttribute = {};
 
     // Add hash
-    hashKey[table.hashType] = hash.toString();
+    hashKey[schema.hashType] = hash.toString();
     request.Key.HashKeyElement = hashKey;
 
     // Add range
     if(opts.range !== undefined){
-        rangeKey[table.rangeType] = schema.field(schema.range).export(opts.range);
+        rangeKey[schema.rangeType] = schema.field(schema.range).export(opts.range);
         request.Key.RangeKeyElement = rangeKey;
     }
 
@@ -664,10 +630,9 @@ Model.prototype.query = function(alias, hash, opts){
     log.silly('Query options: ' + util.inspect(opts, false, 5));
 
     var response = [],
-        table = this.table(alias),
         schema = this.schema(alias),
         request = {
-            'TableName': table.name
+            'TableName': schema.tableName
         },
         obj,
         hashKey = {},
@@ -675,12 +640,11 @@ Model.prototype.query = function(alias, hash, opts){
         attributeValueList = [],
         attributeValue = {},
         exclusiveStartKey = {},
-        attrSchema = this.table(alias).attributeSchema,
         attr,
         dynamoType;
 
     // Add HashKeyValue
-    hashKey[table.hashType] = hash.toString();
+    hashKey[schema.hashType] = hash.toString();
     request.HashKeyValue = hashKey;
 
     // Add RangeKeyCondition
@@ -715,10 +679,10 @@ Model.prototype.query = function(alias, hash, opts){
 
     // Add ExclusiveStartKey
     if(opts.exclusiveStartKey !== undefined){
-        hashKey[table.hashType] = opts.exclusiveStartKey.hashName.toString();
+        hashKey[schema.hashType] = opts.exclusiveStartKey.hashName.toString();
         request.ExclusiveStartKey.HashKeyElement = hashKey;
         if(opts.exclusiveStartKey.range !== undefined){
-            rangeKey[table.rangeType] = opts.exclusiveStartKey.rangeName.toString();
+            rangeKey[schema.rangeType] = opts.exclusiveStartKey.rangeName.toString();
             request.ExclusiveStartKey.RangeKeyElement = rangeKey;
         }
     }
@@ -746,9 +710,9 @@ Model.prototype.query = function(alias, hash, opts){
 // # DANGER: THIS WILL DROP YOUR TABLES AND SHOULD ONLY BE USED IN TESTING.
 Model.prototype.recreateTable = function(alias) {
     var self = this,
-        table = this.table(alias),
+        schema = this.schema(alias),
         tableRequest = {
-            'TableName': table.name
+            'TableName': schema.tableName
         },
         tableDescription = {};
 
@@ -763,13 +727,13 @@ Model.prototype.recreateTable = function(alias) {
         .then(function(){
             tableRequest.KeySchema = tableDescription.Table.KeySchema;
             tableRequest.ProvisionedThroughput = tableDescription.Table.ProvisionedThroughput;
-            return self.isTableDeleted(table.name);
+            return self.isTableDeleted(schema.tableName);
         })
         .then(function(){
             return self.db.createTable(tableRequest);
         })
         .then(function(){
-            return self.isTableActive(table.name);
+            return self.isTableActive(schema.tableName);
         })
         .then(function(){
             return true;
