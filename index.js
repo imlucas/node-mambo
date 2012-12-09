@@ -81,6 +81,17 @@ Model.prototype.batch = function(){
 Model.prototype.getDB = function(key, secret){
     aws.connect({'key': key, 'secret': secret});
     this.db = aws.dynamo;
+
+    aws.dynamo.on('retry', function(err){
+        log.warn('Retrying because of err ' + err);
+    })
+    .on('successful retry', function(err){
+        log.warn('Retry suceeded after encountering error ' + err);
+    })
+    .on('stat', function(data){
+        log.silly('Action ' + data.action + ' consumed ' + data.consumed + ' units.');
+    });
+
     log.debug('Dynamo client created.');
 
     if(process.env.MAMBO_BACKEND === "magneto"){
