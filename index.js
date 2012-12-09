@@ -79,17 +79,22 @@ Model.prototype.batch = function(){
 
 // Actually connect to dynamo or magneto.
 Model.prototype.getDB = function(key, secret){
+    var self = this;
+
     aws.connect({'key': key, 'secret': secret});
     this.db = aws.dynamo;
 
     aws.dynamo.on('retry', function(err){
         log.warn('Retrying because of err ' + err);
+        self.emit('retry', err);
     })
     .on('successful retry', function(err){
         log.warn('Retry suceeded after encountering error ' + err);
+        self.emit('successful', err);
     })
     .on('stat', function(data){
         log.silly('Action ' + data.action + ' consumed ' + data.consumed + ' units.');
+        self.emit('stat', data);
     });
 
     log.debug('Dynamo client created.');
