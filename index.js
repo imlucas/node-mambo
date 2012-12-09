@@ -167,22 +167,13 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     // Assemble the request data
     request = {
         'TableName': schema.tableName,
-        'Key': {
-            'HashKeyElement': {}
-        }
+        'Key': schema.exportKey(hash, range)
     };
 
-    request.Key.HashKeyElement[schema.hashType] = schema.field(schema.hash).export(hash);
-
-    if(schema.range){
-        request.Key.RangeKeyElement = {};
-        request.Key.RangeKeyElement[schema.rangeType] = schema.field(schema.range).export(range);
-    }
-
     if(attributesToGet && attributesToGet.length > 0){
-        // Get only `attributesToGet`
         request.AttributesToGet = attributesToGet;
     }
+
     if(consistentRead){
         request.ConsistentRead = consistentRead;
     }
@@ -217,20 +208,9 @@ Model.prototype.delete = function(alias, hash, opts){
     var schema = this.schema(alias),
         request = {
             'TableName': schema.tableName,
-            'Key': {
-                'HashKeyElement': {}
-            },
+            'Key': schema.exportKey(hash, opts.range),
             'ReturnValues': opts.returnValues || 'NONE'
         };
-
-    // Add hash
-    request.Key.HashKeyElement[schema.hashType] = hash.toString();
-
-    // Add range
-    if(opts.range){
-        request.Key.RangeKeyElement = {};
-        request.Key.RangeKeyElement[schema.rangeType] = opts.range.toString();
-    }
 
     // Add expectedValues for conditional delete
     if(opts.expectedValues){
@@ -239,14 +219,14 @@ Model.prototype.delete = function(alias, hash, opts){
             var expectedAttribute = {
                     'Exists': attr.exists || Number(true)
                 },
-                field = this.schema(alias).field(attr.attributeName);
+                field = schema.field(attr.attributeName);
 
             if (attr.expectedValue) {
                 expectedAttribute.Value = {};
                 expectedAttribute.Value[field.type] = field.export(attr.expectedValue);
             }
             request.Expected[attr.attributeName] = expectedAttribute;
-        }.bind(this));
+        });
     }
     log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
@@ -320,22 +300,13 @@ Model.prototype.batchGet = function(req){
 
     // Assemble the request data
     req.forEach(function(item){
+        item.ranges = item.ranges || [];
+
         schema = this.schema(item.alias);
         request.RequestItems[schema.tableName] = {'Keys': []};
-        // Add hashes
-        item.hashes.forEach(function(hash){
-            var hashKey = {'HashKeyElement': {}};
-            hashKey.HashKeyElement[schema.hashType] = hash.toString();
-            request.RequestItems[schema.tableName].Keys.push(hashKey);
+        request.RequestItems[schema.tableName].Keys = item.hashes.map(function(hash, index){
+            return schema.exportKey(hash, item.ranges[index]);
         });
-
-        // Add ranges
-        if(item.ranges){
-            item.ranges.forEach(function(range, index){
-                request.RequestItems[schema.tableName].Keys[index].RangeKeyElement = {};
-                request.RequestItems[schema.tableName].Keys[index].RangeKeyElement[schema.rangeType] = range.toString();
-            });
-        }
 
         // Add attributesToGet
         if(item.attributesToGet){
@@ -537,25 +508,14 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         schema = this.schema(alias),
         request = {
             'TableName': schema.tableName,
-            'Key': {},
+            'Key': schema.exportKey(hash, opts.range),
             'AttributeUpdates': {},
             'ReturnValues': opts.returnValues || 'NONE'
         },
         obj,
-        hashKey = {},
-        rangeKey = {},
         expectedAttributes = {},
         expectedAttribute = {};
 
-    // Add hash
-    hashKey[schema.hashType] = hash.toString();
-    request.Key.HashKeyElement = hashKey;
-
-    // Add range
-    if(opts.range !== undefined){
-        rangeKey[schema.rangeType] = schema.field(schema.range).export(opts.range);
-        request.Key.RangeKeyElement = rangeKey;
-    }
 
     // Add attributeUpdates
     attrs.forEach(function(attr){
@@ -587,7 +547,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
             }
 
             request.Expected[attr.attributeName] = expectedAttribute;
-        }.bind(this));
+        });
     }
 
     log.silly('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
