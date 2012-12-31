@@ -74,49 +74,113 @@ describe('Model', function(){
         });
     });
 
-    // it('should handle batch inserts', function(done){
-    //     Song.insert('song').set({
-    //         'id': 1
-    //     }).insert('song').set({
-    //         'id': 2
-    //     }).commit().then(function(){
-    //         done();
-    //     });
-    // });
+    it('should handle batch inserts', function(done){
+        Song.insert('song').set({
+            'id': 1
+        }).insert('song').set({
+            'id': 2
+        }).commit().then(function(){
+            done();
+        });
+    });
 
-    // it('should automatically split batches that are too large', function(done){
-    //     var q = Song.insert('song').set({
-    //         'id': 1
-    //     }), i = 2;
-    //     for(i; i <= 50; i++){
-    //         q = q.insert('song').set({
-    //             'id': i
-    //         });
-    //     }
-    //     assert.equal(q.numOps, 50);
-    //     assert.equal(q.puts.song.length, 50);
+    it('should automatically split batches that are too large', function(done){
+        var q = Song.insert('song').set({
+            'id': 1
+        }), i = 2;
+        for(i; i <= 50; i++){
+            q = q.insert('song').set({
+                'id': i
+            });
+        }
+        assert.equal(q.numOps, 50);
+        assert.equal(q.puts.song.length, 50);
 
-    //     q.commit().then(function(songs){
-    //         done();
-    //     });
-    // });
+        q.commit().then(function(songs){
+            done();
+        });
+    });
 
-    // it('should handle batch inserts across tables', function(done){
-    //    var q = Song.insert('song').set({
-    //         'id': 1
-    //     }).insert('loves').set({
-    //         'id': 1,
-    //         'username': 'lucas',
-    //         'created': new Date()
-    //     });
+    it('should handle batch inserts across tables', function(done){
+       var q = Song.insert('song').set({
+            'id': 1
+        }).insert('loves').set({
+            'id': 1,
+            'username': 'lucas',
+            'created': new Date()
+        });
 
-    //     assert.equal(q.lastAlias, 'loves');
-    //     q.commit().then(function(res){
-    //         assert.equal(res.success.loves, 1);
-    //         assert.equal(res.success.song, 1);
-    //         Song.objects('loves', 1).fetch().then(function(loves){
-    //             done();
-    //         });
-    //     });
-    // });
+        assert.equal(q.lastAlias, 'loves');
+        q.commit().then(function(res){
+            assert.equal(res.success.loves, 1);
+            assert.equal(res.success.song, 1);
+            Song.objects('loves', 1).fetch().then(function(loves){
+                done();
+            });
+        });
+    });
+
+    it("should handle setting from object #insert", function(){
+        var data = {
+                'id': 1,
+                'title': 'Some Title',
+                'non_existent_field': 0
+            },
+            q = Song.insert('song').from(data);
+
+        assert.deepEqual(q.ops, {
+            'id': 1,
+            'title': 'Some Title'
+        }, "Should have title and id, but not `non_existent_field`");
+    });
+
+    it("should allow setting expectations on #insert", function(){
+        var q = Song.insert('song').expect('id', true, 1);
+
+        assert.deepEqual(q.expectations, {
+            'id': {
+                'Exists': true,
+                'Value': 1
+            }
+        });
+    });
+
+    it("should correct exists if value given #insert", function(){
+        var q = Song.insert('song').expect('id', false, 0);
+
+        assert.deepEqual(q.expectations, {
+            'id': {
+                'Exists': true,
+                'Value': 0
+            }
+        });
+    });
+
+    it("should support shouldEqual shorthand for #insert", function(){
+        var q = Song.insert('song').shouldEqual('id', 1);
+        assert.deepEqual(q.expectations, {
+            'id': {
+                'Exists': true,
+                'Value': 1
+            }
+        });
+    });
+
+    it("should support shouldExist shorthand for #insert", function(){
+        var q = Song.insert('song').shouldExist('id');
+        assert.deepEqual(q.expectations, {
+            'id': {
+                'Exists': true
+            }
+        });
+    });
+
+    it("should support shouldNotExist shorthand for #insert", function(){
+        var q = Song.insert('song').shouldNotExist('id');
+        assert.deepEqual(q.expectations, {
+            'id': {
+                'Exists': false
+            }
+        });
+    });
 });

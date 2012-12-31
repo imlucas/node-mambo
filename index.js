@@ -481,7 +481,9 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
                 'Value': {}
             };
             request.Expected[key].Exists = expected[key].Exists;
-            request.Expected[key].Value[field.type] = field.export(expected[key].Value);
+            if(expected[key].Value !== undefined){
+                request.Expected[key].Value[field.type] = field.export(expected[key].Value);
+            }
         }.bind(this));
     }
 
@@ -728,7 +730,7 @@ Model.prototype.runScan = function(alias, filter, opts){
         log.silly('SCAN returned: ' + util.inspect(data, false, 5));
         return new Scanner.ScanResult(self, alias, data);
     }, function(err){
-        log.error('SCAN: ' + err.message + '\n' + err.stack);
+        log.error('SCAN: ' + err.message);
         return err;
     });
 };
