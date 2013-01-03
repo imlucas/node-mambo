@@ -643,17 +643,17 @@ Model.prototype.query = function(alias, hash, opts){
 
     // Add Limit
     if(opts.limit !== undefined){
-        request.Limit = Number(opts.limit).toString();
+        request.Limit = Number(opts.limit);
     }
 
     // Add ConsistentRead
     if(opts.consistentRead){
-        request.ConsistentRead = Number(opts.consistentRead).toString();
+        request.ConsistentRead = Number(opts.consistentRead);
     }
 
     // Add ScanIndexForward
     if(opts.scanIndexForward !== undefined){
-        request.ScanIndexForward = Number(opts.scanIndexForward).toString();
+        request.ScanIndexForward = Number(opts.scanIndexForward);
     }
 
     // Add ExclusiveStartKey
