@@ -628,17 +628,7 @@ Model.prototype.query = function(alias, hash, opts){
 
     // Add RangeKeyCondition
     if(opts.rangeKeyCondition !== undefined){
-        attributeValueList = opts.rangeKeyCondition.attributeValueList.map(function(attr){
-            var field = schema.field(attr.attributeName);
-            attributeValue = {};
-            attributeValue[field.type] = field.export(attr.attributeValue);
-            return attributeValue;
-        });
-
-        request.RangeKeyCondition = {
-            'AttributeValueList': attributeValueList,
-            'ComparisonOperator': opts.rangeKeyCondition.comparisonOperator
-        };
+        request.RangeKeyCondition = opts.rangeKeyCondition;
     }
 
     // Add Limit
