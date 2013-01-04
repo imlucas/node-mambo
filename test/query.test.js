@@ -70,5 +70,11 @@ describe('Query', function(){
             var q = Song.objects('loves', 1, Date.now()).update();
             assert.equal(q.constructor, UpdateQuery);
         });
+
+        it('should allow specifying a range key condition', function(){
+            var q = Song.objects('loves').where('created', '>', 1);
+            assert.deepEqual(q.filter, {'created': {'GT': 1}});
+        });
+
     });
 });
