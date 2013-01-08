@@ -639,12 +639,12 @@ Model.prototype.query = function(alias, hash, opts){
 
     // Add ConsistentRead
     if(opts.consistentRead){
-        request.ConsistentRead = Number(opts.consistentRead);
+        request.ConsistentRead = opts.consistentRead;
     }
 
     // Add ScanIndexForward
     if(opts.scanIndexForward !== undefined){
-        request.ScanIndexForward = Number(opts.scanIndexForward);
+        request.ScanIndexForward = opts.scanIndexForward;
     }
 
     // Add ExclusiveStartKey
