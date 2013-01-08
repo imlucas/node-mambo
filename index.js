@@ -675,7 +675,9 @@ Model.prototype.query = function(alias, hash, opts){
                 // filter out attributes not in attributesToGet
                 filteredItem = {};
                 Object.keys(item).forEach(function(key){
-                    filteredItem[key] = item[key];
+                    if(opts.attributesToGet.indexOf(key) !== -1){
+                        filteredItem[key] = item[key];
+                    }
                 });
                 item = filteredItem;
             }
