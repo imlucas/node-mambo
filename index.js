@@ -410,9 +410,10 @@ Model.prototype.batchWrite = function(puts, deletes){
         }
 
         deletes[alias].forEach(function(del){
+            var range = schema.range ? del[schema.range] : undefined;
             req.RequestItems[schema.tableName].push({
                 'DeleteRequest': {
-                    'Key': schema.exportKey(del)
+                    'Key': schema.exportKey(del[schema.hash], range)
                 }
             });
             totalOps++;
