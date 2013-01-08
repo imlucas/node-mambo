@@ -620,7 +620,8 @@ Model.prototype.query = function(alias, hash, opts){
         attributeValue = {},
         exclusiveStartKey = {},
         attr,
-        dynamoType;
+        dynamoType,
+        filteredItem;
 
     // Add HashKeyValue
     hashKey[schema.hashType] = hash.toString();
@@ -666,8 +667,19 @@ Model.prototype.query = function(alias, hash, opts){
     // Make the request
     return this.db.query(request).then(function(data){
         log.silly('QUERY returned: ' + util.inspect(data, false, 5));
+
         return data.Items.map(function(item){
-            return schema.import(item);
+            // Cast the raw data from dynamo
+            item = schema.import(item);
+            if(opts.attributesToGet){
+                // filter out attributes not in attributesToGet
+                filteredItem = {};
+                Object.keys(item).forEach(function(key){
+                    filteredItem[key] = item[key];
+                });
+                item = filteredItem;
+            }
+            return item;
         });
     }, function(err){
         log.error('QUERY: ' + err.message + '\n' + err.stack);

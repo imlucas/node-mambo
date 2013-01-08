@@ -76,5 +76,12 @@ describe('Query', function(){
             assert.deepEqual(q.filter, {'created': {'GT': 1}});
         });
 
+        it('should allow combining range key condition, fields, and limit', function(){
+            var q = Song.objects('loves').where('created', '>', 1).limit(3).fields(['username']);
+            assert.deepEqual(q.filter, {'created': {'GT': 1}});
+            assert.deepEqual(q.fieldNames, ['username']);
+            assert.equal(q._limit, 3);
+        });
+
     });
 });
