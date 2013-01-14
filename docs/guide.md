@@ -26,6 +26,7 @@ The arguments for the schema constructor are:
  * Dynamo Schema Keys - String of the key name for a hash table.  Array for a hash range table, hash key and range key respectively.
  * Spec - Key to field type mapping.  Used for ensuring data is typed correctly going in to dynamo and cast to more complex types coming out.  More on that below.
 
+
  ## Fields
 
  Dynamo has a very miminal set of built in field types:
@@ -66,5 +67,21 @@ You can also easily apply logic for conditional puts:
         .commit()
         .then(successHandler, errorHandler);
 
+## Events
 
+Mambo relays all events from the [plata](https://github.com/exfm/node-plata) "driver" that you can do really interesting things with.
+The emitted events are `retry`, `successful retry`, and `stat`.
+
+    model.on('retry', function(err, action, data){
+        console.log('Mambo will retry the request `'+action+'` with data `'+data+'` because `'+err.message+'`');
+        console.log('At this point, you could make a call to "autoscale" your throughput for `'+date.TableName+'`');
+    });
+    
+    model.on('retry successful', function(err, action, data){
+        console.log('The retry of `'+action+'` with data `'+data+'` because `'+err.message+'` was successful.');
+    });
+    
+    model.on('stat', function(stat, action, data){
+        console.log('The action `'+action+'` with data `'+data+'` used `'+stat.consumed+'` capacity units.');
+    });
 
