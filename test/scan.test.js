@@ -50,10 +50,15 @@ describe('Scan', function(){
             assert.equal(q._limit, 5);
         });
 
-
         it('should allow specifying fields', function(){
             var s = Song.scan('loves').fields(['username', 'created']);
             assert.deepEqual(s._fields, ['username', 'created']);
         });
+
+        it('should allow specifying a range key condition', function(){
+            var s = Song.scan('loves').where('created', '>', 1);
+            assert.deepEqual(s.filter, {'created': {'GT': 1}});
+        });
+
     });
 });

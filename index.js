@@ -410,9 +410,10 @@ Model.prototype.batchWrite = function(puts, deletes){
         }
 
         deletes[alias].forEach(function(del){
+            var range = schema.range ? del[schema.range] : undefined;
             req.RequestItems[schema.tableName].push({
                 'DeleteRequest': {
-                    'Key': schema.exportKey(del)
+                    'Key': schema.exportKey(del[schema.hash], range)
                 }
             });
             totalOps++;
@@ -620,7 +621,8 @@ Model.prototype.query = function(alias, hash, opts){
         attributeValue = {},
         exclusiveStartKey = {},
         attr,
-        dynamoType;
+        dynamoType,
+        filteredItem;
 
     // Add HashKeyValue
     hashKey[schema.hashType] = hash.toString();
@@ -628,17 +630,7 @@ Model.prototype.query = function(alias, hash, opts){
 
     // Add RangeKeyCondition
     if(opts.rangeKeyCondition !== undefined){
-        attributeValueList = opts.rangeKeyCondition.attributeValueList.map(function(attr){
-            var field = schema.field(attr.attributeName);
-            attributeValue = {};
-            attributeValue[field.type] = field.export(attr.attributeValue);
-            return attributeValue;
-        });
-
-        request.RangeKeyCondition = {
-            'AttributeValueList': attributeValueList,
-            'ComparisonOperator': opts.rangeKeyCondition.comparisonOperator
-        };
+        request.RangeKeyCondition = opts.rangeKeyCondition;
     }
 
     // Add Limit
@@ -648,12 +640,12 @@ Model.prototype.query = function(alias, hash, opts){
 
     // Add ConsistentRead
     if(opts.consistentRead){
-        request.ConsistentRead = Number(opts.consistentRead);
+        request.ConsistentRead = opts.consistentRead;
     }
 
     // Add ScanIndexForward
     if(opts.scanIndexForward !== undefined){
-        request.ScanIndexForward = Number(opts.scanIndexForward);
+        request.ScanIndexForward = opts.scanIndexForward;
     }
 
     // Add ExclusiveStartKey
@@ -676,8 +668,21 @@ Model.prototype.query = function(alias, hash, opts){
     // Make the request
     return this.db.query(request).then(function(data){
         log.silly('QUERY returned: ' + util.inspect(data, false, 5));
+
         return data.Items.map(function(item){
-            return schema.import(item);
+            // Cast the raw data from dynamo
+            item = schema.import(item);
+            if(opts.attributesToGet){
+                // filter out attributes not in attributesToGet
+                filteredItem = {};
+                Object.keys(item).forEach(function(key){
+                    if(opts.attributesToGet.indexOf(key) !== -1){
+                        filteredItem[key] = item[key];
+                    }
+                });
+                item = filteredItem;
+            }
+            return item;
         });
     }, function(err){
         log.error('QUERY: ' + err.message + '\n' + err.stack);
