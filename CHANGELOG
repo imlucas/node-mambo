@@ -1,3 +1,12 @@
+## 0.0.12
+
+ff07e95: Bump to 0.0.12 - [imlucas](https://github.com/imlucas), Wed Jan 16 13:16:54 2013 -0500
+d4caaea: Merge pull request #13 from exfm/queryRangeCondition - [imlucas](https://github.com/imlucas), Wed Jan 16 10:15:31 2013 -0800
+7acd2b9: When query results are reversed ScanForward should be false. - [jonathanmarmor](https://github.com/jonathanmarmor), Wed Jan 16 13:06:46 2013 -0500
+ce4b11b: Default sort is ascending. - [jonathanmarmor](https://github.com/jonathanmarmor), Wed Jan 16 12:55:50 2013 -0500
+569771c: [#42506243] Plata doesnt munge respones like the old dynamo lib - [imlucas](https://github.com/imlucas), Tue Jan 15 11:38:14 2013 -0500
+2f6391e: Add changelog - [imlucas](https://github.com/imlucas), Mon Jan 14 20:12:31 2013 -0500
+
 ## 0.0.11
 
 9f80e1a: Bump to 0.0.11 - [imlucas](https://github.com/imlucas), Mon Jan 14 19:49:57 2013 -0500
