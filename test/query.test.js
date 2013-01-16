@@ -58,7 +58,7 @@ describe('Query', function(){
 
         it('should allow reversing the returned data', function(){
             var q = Song.objects('loves', 1).reverse();
-            assert.equal(q.scanForward, true);
+            assert.equal(q.scanForward, false);
         });
 
         it('should allow specifying fields', function(){
