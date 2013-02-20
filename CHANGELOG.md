@@ -1,6 +1,6 @@
 ## 0.0.13
 
- * b03c890: Regression - [imlucas](https://github.com/imlucas), Wed Jan 16 13:29:39 2013 -0500
+ * b03c890e6636b50512159321ba4a8eb2bd021fe3: Regression - [imlucas](https://github.com/imlucas), Wed Jan 16 13:29:39 2013 -0500
 
 ## 0.0.12
 
