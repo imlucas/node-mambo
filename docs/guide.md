@@ -1,6 +1,9 @@
 # Mambo
 
-Mambo is a document mapper for Amazon's [DynamoDB](http://aws.amazon.com/dynamodb/), a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides casting of the primitive types Dynamo offers (number, string and binary fields) into higher level javascript types (JSON, Boolean, Date and many other fields).  
+Mambo is a document mapper for Amazon's [DynamoDB](http://aws.amazon.com/dynamodb/), a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides 
+
+ * casting: Dynamo offers (number, string and binary fields), mambo provides higher level javascript types (Object, Array, Boolean, Date and many others).  
+ * fluent api: Chainable instances for Query's, Scan's, Update's and Insert's.
 
 ## Tutorial
 ### Defining Schemas
