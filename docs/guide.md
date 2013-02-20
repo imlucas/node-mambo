@@ -49,6 +49,20 @@ Mambo provides a few others:
  * `JSONField` - Arrays or Objects.  Stored as StringField.
  * `BooleanField` - Stored as NumberField.
 
+### Connecting to Dynamo
+
+Models expose a connect method:
+
+    model.connect(key, secret, prefix, region)
+    
+As you would expect, to connect to dynamo you'll need to provide an AWS key and secret.  Connecting is synchronous and emits a `connect` event for extensibility.
+
+Prefix is a table name prefix for easily running multiple environments with the same table names.
+
+Region's are not fully supported yet.
+
+Currently, each model connects indepently, but it is probably a good idea to add a top level `mambo.connect` method like mongoose.
+
 ### Inserting Documents
 
 `Model.insert` provides a nice wrapper for calling `PutItem`:
