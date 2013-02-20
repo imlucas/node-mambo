@@ -19,6 +19,7 @@ To define a schema:
         'title': StringField,
         'content': StringField,
         'hits': NumberField,
+        'update_count': NumberField,
         'date_modified': DateField
     });
 
@@ -90,6 +91,24 @@ You can also easily apply logic for conditional puts:
         
 ### Updating Documents
 
+Mambo exposes an [`UpdateQuery`](https://github.com/exfm/node-mambo/blob/master/lib/update-query.js) instance to make updates fluent and batch-able.
+
+    model.update('page', 'about')
+        .set({
+            'content': 'These are some things about us.', 
+            'date_modified': new Date()
+        })
+        .inc('update_count', 1)
+        .returnNone()
+        .commit()
+        .then(successHandler, errorHandler);
+
+`UpdateQuery` exposes
+
+ * `returnNone`, `returnAllOld`, `returnAllNew`, `returnUpdatedOld`, `returnUpdatedNew`: Control the ReturnValues for an update
+ * `inc`, `dec`, `push`, `set`: Atomic update operators
+ * `expect`: Specify conditional puts, just like `insert` 
+
 ### Querying Documents
 
 #### Query
@@ -115,6 +134,8 @@ The emitted events are `retry`, `successful retry`, and `stat`.
     });
 
 These are extremely useful for debugging and can be used for really interesting tools like [autoscaling your table throughput](https://github.com/exfm/node-dynascale).
+
+### Custom Fields
 
 ## Other Links
 
