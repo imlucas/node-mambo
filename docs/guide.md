@@ -115,7 +115,7 @@ Dynamo exposes three read operators: `Get`, `Query` and `Scan`.
 
 #### Get
 
-Get is for fetching a single document by hash key or hash AND range key.
+[`Get`](https://github.com/exfm/node-mambo/blob/master/index.js#L179) is for fetching a single document by hash key or hash AND range key.
 
     model.get('page', 'about').then(function(doc){
         console.log('Got page: ' + JSON.stringify(doc));
@@ -132,6 +132,35 @@ You can also specify attributes to fetch and whether the read should be consiste
     });
     
 #### Query
+
+[`Query`](https://github.com/exfm/node-mambo/blob/master/index.js#L606) is one level up from get.  It's primary use is for fetching linked documents.  Say we wanted to add logs for page views.  Our hash key will be the page id and we'll choose the current time in ms for our range key.
+
+    var logSchema = new Schema('PageLog', 'log', ['id', 'timestamp'], {
+        'id': StringField,
+        'timestamp': DateField,
+        'ip': StringField
+    });
+    
+    model.insert('log').set({
+        'id': 'about', 
+        'timestamp': new Date(),
+        'ip': '10.0.0.0'
+    }).commit();
+    
+    model.insert('log').set({
+        'id': 'about', 
+        'timestamp': new Date(),
+        'ip': '10.0.0.1'
+    }).commit();
+    
+
+No if we wanted to get a list of all ip's that have viewed the about page:
+
+    model.query('log', 'about').then(function(docs){
+        console.log('ips that viewed about: ' + docs.map(function(doc){
+            return doc.ip;
+        }));
+    });
 
 #### Scan
 
