@@ -32,22 +32,22 @@ The arguments for the schema constructor are:
  * Spec - Key to field type mapping.  Used for ensuring data is typed correctly going in to dynamo and cast to more complex types coming out.  More on that below.
 
 
- ### Fields
+### Fields
 
  Dynamo has a very miminal set of built in field types:
 
-  - `StringField`
-  - `StringSetField`
-  - `NumberField`
-  - `NumberSetField`
-  - `BinaryField`
-  - `BinarySetField`
+ * `StringField`
+ * `StringSetField`
+ * `NumberField`
+ * `NumberSetField`
+ * `BinaryField`
+ * `BinarySetField`
 
 Mambo provides a few others:
 
- - `DateField` - Date objects going in and out.  Stored as NumberField.
- - `JSONField` - Arrays or Objects.  Stored as StringField.
- - `BooleanField` - Stored as NumberField.
+ * `DateField` - Date objects going in and out.  Stored as NumberField.
+ * `JSONField` - Arrays or Objects.  Stored as StringField.
+ * `BooleanField` - Stored as NumberField.
 
 ### Inserting Documents
 
