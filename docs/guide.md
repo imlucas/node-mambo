@@ -73,6 +73,14 @@ You can also easily apply logic for conditional puts:
         .expect('id', false, null)
         .commit()
         .then(successHandler, errorHandler);
+        
+### Updating Documents
+
+### Querying Documents
+
+#### Query
+
+#### Scan
 
 ### Events
 
