@@ -16,7 +16,7 @@ if(!base || ! cut){
     process.exit(1);
 }
 
-cmd = 'git log '+base+'...master --pretty=format:"%h: %s - %an, %ad"';
+cmd = 'git log '+base+'...master --pretty=format:" * %h: %s - %an, %ad"';
 child_process.exec(cmd, function(err, stdout, stderr){
     var entry = "## " + cut + "\n\n";
 
