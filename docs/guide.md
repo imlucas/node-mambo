@@ -87,3 +87,12 @@ The emitted events are `retry`, `successful retry`, and `stat`.
 
 These are extremely useful for debugging and can be used for really interesting tools like [autoscaling your table throughput](https://github.com/exfm/node-dynascale).
 
+
+## License
+
+MIT
+
+## Links
+
+ * [Changelog](https://github.com/exfm/node-mambo/blob/master/CHANGELOG.md)
+ * [Issues](https://github.com/exfm/node-mambo/issues)
