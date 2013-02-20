@@ -111,9 +111,33 @@ Mambo exposes an [`UpdateQuery`](https://github.com/exfm/node-mambo/blob/master/
 
 ### Querying Documents
 
+Dynamo exposes three read operators: `Get`, `Query` and `Scan`.
+
+#### Get
+
+Get is for fetching a single document by hash key or hash AND range key.
+
+    model.get('page', 'about').then(function(doc){
+        console.log('Got page: ' + JSON.stringify(doc));
+    }, function(err){
+        console.error('Error fetching page: ' + err);
+    });
+
+You can also specify attributes to fetch and whether the read should be consistent.
+
+    model.get('page', 'about', undefined, ['id'], true).then(function(doc){
+        console.log('Got consistent doc that only has id: ' + JSON.stringify(doc));
+    }, function(err){
+        console.error('Error fetching page: ' + err);
+    });
+    
 #### Query
 
 #### Scan
+
+### Batch
+
+@todo
 
 ### Events
 
@@ -136,6 +160,8 @@ The emitted events are `retry`, `successful retry`, and `stat`.
 These are extremely useful for debugging and can be used for really interesting tools like [autoscaling your table throughput](https://github.com/exfm/node-dynascale).
 
 ### Custom Fields
+
+@todo
 
 ## Other Links
 
