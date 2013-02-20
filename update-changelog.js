@@ -28,9 +28,9 @@ child_process.exec(cmd, function(err, stdout, stderr){
     });
     entry += "\n";
 
-    fs.readFile('./CHANGELOG', 'utf-8', function(err, data){
+    fs.readFile('./CHANGELOG.md', 'utf-8', function(err, data){
         data = data.toString();
-        fs.writeFile('./CHANGELOG', entry + data, 'utf-8', function(){
+        fs.writeFile('./CHANGELOG.md', entry + data, 'utf-8', function(){
             console.log(entry);
         });
     });
