@@ -1,4 +1,9 @@
-## Defining Schemas
+# Mambo
+
+Mambo is a document mapper for Amazon's [DynamoDB](http://aws.amazon.com/dynamodb/), a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides casting of the primitive types Dynamo offers (number, string and binary fields) into higher level javascript types (JSON, Boolean, Date and many other fields).  
+
+## Tutorial
+### Defining Schemas
 
 Mambo allows you to define schemata for table items to make dynamo friendlier to use. casting Dates, strings, and numbers correctly.  Applying default / nullable values (dynamo doesnt really allow nulls).
 
@@ -27,22 +32,24 @@ The arguments for the schema constructor are:
  * Spec - Key to field type mapping.  Used for ensuring data is typed correctly going in to dynamo and cast to more complex types coming out.  More on that below.
 
 
- ## Fields
+ ### Fields
 
  Dynamo has a very miminal set of built in field types:
 
-  - StringField
-  - StringSetField
-  - NumberField
-  - NumberSetField
+  - `StringField`
+  - `StringSetField`
+  - `NumberField`
+  - `NumberSetField`
+  - `BinaryField`
+  - `BinarySetField`
 
 Mambo provides a few others:
 
- - DateField - Date objects going in and out.  Stored as NumberField.
- - JSONField - Arrays or Objects.  Stored as StringField.
- - BooleanField - Stored as NumberField.
+ - `DateField` - Date objects going in and out.  Stored as NumberField.
+ - `JSONField` - Arrays or Objects.  Stored as StringField.
+ - `BooleanField` - Stored as NumberField.
 
-## Inserting Documents
+### Inserting Documents
 
 `Model.insert` provides a nice wrapper for calling `PutItem`:
 
@@ -67,7 +74,7 @@ You can also easily apply logic for conditional puts:
         .commit()
         .then(successHandler, errorHandler);
 
-## Events
+### Events
 
 Mambo relays all events from the [plata](https://github.com/exfm/node-plata) "driver" that you can do really interesting things with.
 The emitted events are `retry`, `successful retry`, and `stat`.
@@ -87,12 +94,11 @@ The emitted events are `retry`, `successful retry`, and `stat`.
 
 These are extremely useful for debugging and can be used for really interesting tools like [autoscaling your table throughput](https://github.com/exfm/node-dynascale).
 
+## Other Links
+
+ * [Changelog](https://github.com/exfm/node-mambo/blob/master/CHANGELOG.md)
+ * [Issues](https://github.com/exfm/node-mambo/issues)
 
 ## License
 
 MIT
-
-## Links
-
- * [Changelog](https://github.com/exfm/node-mambo/blob/master/CHANGELOG.md)
- * [Issues](https://github.com/exfm/node-mambo/issues)
