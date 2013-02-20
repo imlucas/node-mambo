@@ -85,3 +85,5 @@ The emitted events are `retry`, `successful retry`, and `stat`.
         console.log('The action `'+action+'` with data `'+data+'` used `'+stat.consumed+'` capacity units.');
     });
 
+These are extremely useful for debugging and can be used for really interesting tools like [autoscaling your table throughput](https://github.com/exfm/node-dynascale).
+
