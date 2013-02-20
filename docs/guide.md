@@ -171,6 +171,23 @@ No if we wanted to get a list of all ip's that have viewed the about page:
 
 @todo
 
+### Testing
+
+Testing your applications that use mambo is made extremely simple with [magneto](https://github.com/exfm/node-magneto), an in memory, mock dynamodb.  
+Just specify `MAMBO_BACKEND=magneto` as an environment variable and mambo will use magneto's rest api instead of dynamo.
+
+Mambo also provides helpers for your tests. For example, with mocha
+
+    describe('my tests', function(){
+        before(function(done){
+            model.connect(null, null, 'Testing');
+            model.createAll().then(function(){
+                console.log('Tables created.  Test away.');
+                done();
+            });
+        });
+        ... Your tests
+
 ### Events
 
 Mambo relays all events from the [plata](https://github.com/exfm/node-plata) "driver" that you can do really interesting things with.
