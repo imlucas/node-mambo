@@ -212,6 +212,7 @@ code {
 }
 a code {
   border: 1px solid #1077c7;
+  color: #1077c7;
 }
 pre code {
   display: block;
