@@ -456,4 +456,6 @@ Small Device Styles
   background-image: url('http://ex.fm/static/images/exfm-logo.png');
   background-position: 41px 8px;
   background-repeat: no-repeat;
+  width: 115px;
+  height: 45px;
 }
