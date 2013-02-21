@@ -31,8 +31,20 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-        <article class="markdown-body entry-content" itemprop="mainContentOfPage"><h2>
-<a name="defining-schemas" class="anchor" href="#defining-schemas"><span class="mini-icon mini-icon-link"></span></a>Defining Schemas</h2>
+      <article class="markdown-body entry-content" itemprop="mainContentOfPage"><h1>
+<a name="mambo" class="anchor" href="#mambo"><span class="mini-icon mini-icon-link"></span></a>Mambo</h1>
+
+<p>Mambo is a document mapper for Amazon's <a href="http://aws.amazon.com/dynamodb/">DynamoDB</a>, a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides </p>
+
+<ul>
+<li>casting: Dynamo offers (number, string and binary fields), mambo provides higher level javascript types (Object, Array, Boolean, Date and many others).<br>
+</li>
+<li>fluent api: Chainable instances for Query's, Scan's, Update's and Insert's.</li>
+</ul><h2>
+<a name="tutorial" class="anchor" href="#tutorial"><span class="mini-icon mini-icon-link"></span></a>Tutorial</h2>
+
+<h3>
+<a name="defining-schemas" class="anchor" href="#defining-schemas"><span class="mini-icon mini-icon-link"></span></a>Defining Schemas</h3>
 
 <p>Mambo allows you to define schemata for table items to make dynamo friendlier to use. casting Dates, strings, and numbers correctly.  Applying default / nullable values (dynamo doesnt really allow nulls).</p>
 
@@ -48,6 +60,7 @@ var PageSchema = new Schema('Page', 'page', 'id', {
     'title': StringField,
     'content': StringField,
     'hits': NumberField,
+    'update_count': NumberField,
     'date_modified': DateField
 });
 
@@ -60,29 +73,46 @@ var model = new mambo.Model(PageSchema);
 <li>Base Table Name - Allows global prefixing to easily support switching environments.</li>
 <li>Table Alias - Because the table name may change with prefixing or may need to be longer.  The alias is used to refer to a specific schema in all commands.</li>
 <li>Dynamo Schema Keys - String of the key name for a hash table.  Array for a hash range table, hash key and range key respectively.</li>
-<li>
-<p>Spec - Key to field type mapping.  Used for ensuring data is typed correctly going in to dynamo and cast to more complex types coming out.  More on that below.</p>
-
-<h2>
-<a name="fields" class="anchor" href="#fields"><span class="mini-icon mini-icon-link"></span></a>Fields</h2>
+<li>Spec - Key to field type mapping.  Used for ensuring data is typed correctly going in to dynamo and cast to more complex types coming out.  More on that below.</li>
+</ul><h3>
+<a name="fields" class="anchor" href="#fields"><span class="mini-icon mini-icon-link"></span></a>Fields</h3>
 
 <p>Dynamo has a very miminal set of built in field types:</p>
 
 <ul>
-<li>StringField</li>
-<li>StringSetField</li>
-<li>NumberField</li>
-<li>NumberSetField</li>
-</ul>
-</li>
+<li><code>StringField</code></li>
+<li><code>StringSetField</code></li>
+<li><code>NumberField</code></li>
+<li><code>NumberSetField</code></li>
+<li><code>BinaryField</code></li>
+<li><code>BinarySetField</code></li>
 </ul><p>Mambo provides a few others:</p>
 
 <ul>
-<li>DateField - Date objects going in and out.  Stored as NumberField.</li>
-<li>JSONField - Arrays or Objects.  Stored as StringField.</li>
-<li>BooleanField - Stored as NumberField.</li>
-</ul><h2>
-<a name="inserting-documents" class="anchor" href="#inserting-documents"><span class="mini-icon mini-icon-link"></span></a>Inserting Documents</h2>
+<li>
+<code>DateField</code> - Date objects going in and out.  Stored as NumberField.</li>
+<li>
+<code>JSONField</code> - Arrays or Objects.  Stored as StringField.</li>
+<li>
+<code>BooleanField</code> - Stored as NumberField.</li>
+</ul><h3>
+<a name="connecting-to-dynamo" class="anchor" href="#connecting-to-dynamo"><span class="mini-icon mini-icon-link"></span></a>Connecting to Dynamo</h3>
+
+<p>Models expose a connect method:</p>
+
+<pre><code>model.connect(key, secret, prefix, region)
+</code></pre>
+
+<p>As you would expect, to connect to dynamo you'll need to provide an AWS key and secret.  Connecting is synchronous and emits a <code>connect</code> event for extensibility.</p>
+
+<p>Prefix is a table name prefix for easily running multiple environments with the same table names.</p>
+
+<p>Region's are not fully supported yet.</p>
+
+<p>Currently, each model connects indepently, but it is probably a good idea to add a top level <code>mambo.connect</code> method like mongoose.</p>
+
+<h3>
+<a name="inserting-documents" class="anchor" href="#inserting-documents"><span class="mini-icon mini-icon-link"></span></a>Inserting Documents</h3>
 
 <p><code>Model.insert</code> provides a nice wrapper for calling <code>PutItem</code>:</p>
 
@@ -109,8 +139,119 @@ model.insert('page')
     .then(successHandler, errorHandler);
 </code></pre>
 
-<h2>
-<a name="events" class="anchor" href="#events"><span class="mini-icon mini-icon-link"></span></a>Events</h2>
+<h3>
+<a name="updating-documents" class="anchor" href="#updating-documents"><span class="mini-icon mini-icon-link"></span></a>Updating Documents</h3>
+
+<p>Mambo exposes an <a href="https://github.com/exfm/node-mambo/blob/master/lib/update-query.js"><code>UpdateQuery</code></a> instance to make updates fluent and batch-able.</p>
+
+<pre><code>model.update('page', 'about')
+    .set({
+        'content': 'These are some things about us.', 
+        'date_modified': new Date()
+    })
+    .inc('update_count', 1)
+    .returnNone()
+    .commit()
+    .then(successHandler, errorHandler);
+</code></pre>
+
+<p><code>UpdateQuery</code> exposes</p>
+
+<ul>
+<li>
+<code>returnNone</code>, <code>returnAllOld</code>, <code>returnAllNew</code>, <code>returnUpdatedOld</code>, <code>returnUpdatedNew</code>: Control the ReturnValues for an update</li>
+<li>
+<code>inc</code>, <code>dec</code>, <code>push</code>, <code>set</code>: Atomic update operators</li>
+<li>
+<code>expect</code>: Specify conditional puts, just like <code>insert</code> </li>
+</ul><h3>
+<a name="querying-documents" class="anchor" href="#querying-documents"><span class="mini-icon mini-icon-link"></span></a>Querying Documents</h3>
+
+<p>Dynamo exposes three read operators: <code>Get</code>, <code>Query</code> and <code>Scan</code>.</p>
+
+<h4>
+<a name="get" class="anchor" href="#get"><span class="mini-icon mini-icon-link"></span></a>Get</h4>
+
+<p><a href="https://github.com/exfm/node-mambo/blob/master/index.js#L179"><code>Get</code></a> is for fetching a single document by hash key or hash AND range key.</p>
+
+<pre><code>model.get('page', 'about').then(function(doc){
+    console.log('Got page: ' + JSON.stringify(doc));
+}, function(err){
+    console.error('Error fetching page: ' + err);
+});
+</code></pre>
+
+<p>You can also specify attributes to fetch and whether the read should be consistent.</p>
+
+<pre><code>model.get('page', 'about', undefined, ['id'], true).then(function(doc){
+    console.log('Got consistent doc that only has id: ' + JSON.stringify(doc));
+}, function(err){
+    console.error('Error fetching page: ' + err);
+});
+</code></pre>
+
+<h4>
+<a name="query" class="anchor" href="#query"><span class="mini-icon mini-icon-link"></span></a>Query</h4>
+
+<p><a href="https://github.com/exfm/node-mambo/blob/master/index.js#L606"><code>Query</code></a> is one level up from get.  It's primary use is for fetching linked documents.  Say we wanted to add logs for page views.  Our hash key will be the page id and we'll choose the current time in ms for our range key.</p>
+
+<pre><code>var logSchema = new Schema('PageLog', 'log', ['id', 'timestamp'], {
+    'id': StringField,
+    'timestamp': DateField,
+    'ip': StringField
+});
+
+model.insert('log').set({
+    'id': 'about', 
+    'timestamp': new Date(),
+    'ip': '10.0.0.0'
+}).commit();
+
+model.insert('log').set({
+    'id': 'about', 
+    'timestamp': new Date(),
+    'ip': '10.0.0.1'
+}).commit();
+</code></pre>
+
+<p>No if we wanted to get a list of all ip's that have viewed the about page:</p>
+
+<pre><code>model.query('log', 'about').then(function(docs){
+    console.log('ips that viewed about: ' + docs.map(function(doc){
+        return doc.ip;
+    }));
+});
+</code></pre>
+
+<h4>
+<a name="scan" class="anchor" href="#scan"><span class="mini-icon mini-icon-link"></span></a>Scan</h4>
+
+<h3>
+<a name="batch" class="anchor" href="#batch"><span class="mini-icon mini-icon-link"></span></a>Batch</h3>
+
+<p>@todo</p>
+
+<h3>
+<a name="testing" class="anchor" href="#testing"><span class="mini-icon mini-icon-link"></span></a>Testing</h3>
+
+<p>Testing your applications that use mambo is made extremely simple with <a href="https://github.com/exfm/node-magneto">magneto</a>, an in memory, mock dynamodb.<br>
+Just specify <code>MAMBO_BACKEND=magneto</code> as an environment variable and mambo will use magneto's rest api instead of dynamo.</p>
+
+<p>Mambo also provides helpers for your tests. For example, with mocha</p>
+
+<pre><code>describe('my tests', function(){
+    before(function(done){
+        model.connect(null, null, 'Testing');
+        model.createAll().then(function(){
+            console.log('Tables created.  Test away.');
+            done();
+        });
+    });
+    ... Your tests
+</code></pre>
+
+<h3>
+<a name="events" class="anchor" href="#events"><span class="mini-icon mini-icon-link"></span></a>Events</h3>
 
 <p>Mambo relays all events from the <a href="https://github.com/exfm/node-plata">plata</a> "driver" that you can do really interesting things with.
 The emitted events are <code>retry</code>, <code>successful retry</code>, and <code>stat</code>.</p>
@@ -129,7 +270,23 @@ model.on('stat', function(stat, action, data){
 });
 </code></pre>
 
-<p>These are extremely useful for debugging and can be used for really interesting tools like <a href="https://github.com/exfm/node-dynascale">autoscaling your table throughput</a>.</p></article>
+<p>These are extremely useful for debugging and can be used for really interesting tools like <a href="https://github.com/exfm/node-dynascale">autoscaling your table throughput</a>.</p>
+
+<h3>
+<a name="custom-fields" class="anchor" href="#custom-fields"><span class="mini-icon mini-icon-link"></span></a>Custom Fields</h3>
+
+<p>@todo</p>
+
+<h2>
+<a name="other-links" class="anchor" href="#other-links"><span class="mini-icon mini-icon-link"></span></a>Other Links</h2>
+
+<ul>
+<li><a href="https://github.com/exfm/node-mambo/blob/master/CHANGELOG.md">Changelog</a></li>
+<li><a href="https://github.com/exfm/node-mambo/issues">Issues</a></li>
+</ul><h2>
+<a name="license" class="anchor" href="#license"><span class="mini-icon mini-icon-link"></span></a>License</h2>
+
+<p>MIT</p></article>
       </section>
     </div>
 
