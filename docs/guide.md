@@ -242,7 +242,28 @@ So now we're inserted 100 new items, with 2 from our previous deploy.  Let's run
 
 ### Batch
 
-@todo
+In our example above, we inserted 100 log items, which resulted in 100 API calls to dynamo.  But we can make things run even faster by using batch writes.  As you would expect, batch writes allow multiple writes per API call, up to 25 items.  This is really nice, but feels kind of clunky manually batching things up.  Instead, mambo splits your requests into batches of 25 automatically; looks like a single request, returns a single response.  
+
+    var batch = model.batch();
+
+    for(i = 0; i < howManyEntries; i++){
+        page = pages[Math.floor(Math.random() * pages.length)];
+        ip = ip[Math.floor(Math.random() * ip.length)];
+        username = usernames[Math.floor(Math.random() * usernames.length)];
+        batch.insert('log', {
+            'id': page, 
+            'timestamp': startTime + 1,
+            'ip': ip,
+            'day': today,
+            'username': username,
+            'state': 'NY'
+        });
+    }
+    batch.commit().then(successHandler, errorHandler);
+    
+@todo Batch Get
+
+@todo Batch Get and Write Multi Table
 
 ### Testing
 
