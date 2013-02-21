@@ -461,5 +461,8 @@ Small Device Styles
   height: 45px;
   display: block;
   text-indent: -1000px;
+}
+
+#footer_wrap .logo{
   margin: 0 auto;
 }
