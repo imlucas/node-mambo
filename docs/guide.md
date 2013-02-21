@@ -167,6 +167,79 @@ No if we wanted to get a list of all ip's that have viewed the about page:
 
 #### Scan
 
+[`Scan`](https://github.com/exfm/node-mambo/blob/master/index.js#L693) is a full table scan.  Scan can be extremely useful, but can be quite literally very expensive.  Mambo provides a [`Scanner`](https://github.com/exfm/node-mambo/blob/master/lib/scan.js) instance to make every the harry-est of queries very simple.  You have the following operators available for a scan:
+
+ * ==
+ * !=
+ * <
+ * <=
+ * >
+ * >=
+ * NOT_NULL
+ * NULL
+ * CONTAINS
+ * NOT_CONTAINS
+ * BEGINS_WITH
+ * IN
+ * BETWEEN
+
+Say we wanted to change our log's to include a username and state and we wanted to view the most visited pages in NY today. (yes, this is probably better done as an elastic map reduce job, but play along smartypants.)
+
+    var logSchema = new Schema('PageLog', 'log', ['id', 'timestamp'], {
+        'id': StringField,
+        'timestamp': DateField,
+        'ip': StringField,
+        'day': StringField,
+        'state': StringField,
+        'username': StringField
+    });
+
+And let's insert some fresh data.
+
+    var howManyEntries = 100,
+        now =  new Date(),
+        startTime = now.getTime(),
+        today = [now.getYear(), now.getMonth(), now.getDay()].join(),
+        pages = ['about', 'home', 'user/lucas', 'user/dan', 'user/jm', 'user/majman'],
+        usernames = ['lucas', 'dan', 'jm', 'majman'],
+        ips = ['10.0.0.1', '10.0.0.2', '10.0.0.3', '10.0.0.4']
+        page, username, ip, i;
+
+    for(i = 0; i < howManyEntries; i++){
+        page = pages[Math.floor(Math.random() * pages.length)];
+        ip = ip[Math.floor(Math.random() * ip.length)];
+        username = usernames[Math.floor(Math.random() * usernames.length)];
+        model.insert('log').set({
+            'id': page, 
+            'timestamp': startTime + 1,
+            'ip': ip,
+            'day': today,
+            'username': username,
+            'state': 'NY'
+        }).commit();
+    }
+    
+So now we're inserted 100 new items, with 2 from our previous deploy.  Let's run a scan to get only those pageviews that were for user pages and the visitor was in NY.
+
+    var now = new Date(),
+        today = [now.getYear(), now.getMonth(), now.getDay()].join(),
+        pageToUsers = {};
+
+    model.scan('log')
+        .where('state', '==', 'NY')
+        .where('state', '!=', null)  // Translates into state NOT_NULL
+        .where('id', 'BEGINS_WITH', 'user/')
+        .where('day', '==', today)
+        .fields(['id', 'username'])
+        .fetch(function(docs){
+            docs.forEach(function(doc){
+                if(!pageToUsers.hasOwnProperty(doc.id)){
+                    pageToUsers[doc.id] = [];
+                }
+                pageToUsers[doc.id].push(doc.username);
+            });
+        });
+
 ### Batch
 
 @todo
