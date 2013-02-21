@@ -92,6 +92,7 @@ h1, h2, h3, h4, h5, h6 {
   color:#333333;
   font-family: "DINMedium",sans-serif;
   letter-spacing: -1px;
+  text-shadow: 0 1px 0 #FFF;
 }
 
 h1 {
@@ -451,4 +452,8 @@ Small Device Styles
     font-size: 11px;
   }
 
+.logo{
+  background-image: url('http://ex.fm/static/images/exfm-logo.png');
+  background-position: 41px 8px;
+  background-repeat: no-repeat;
 }
