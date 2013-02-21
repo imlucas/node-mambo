@@ -10,7 +10,9 @@ var Schema = require('../lib/schema'),
     NumberSetField = fields.NumberSetField,
     JSONField = fields.JSONField,
     DateField = fields.DateField,
-    BooleanField = fields.BooleanField;
+    BooleanField = fields.BooleanField,
+    BloomFilterField = fields.BloomFilterField,
+    BloomFilter = require('../lib/bloomy');
 
 describe('Schema', function(){
     it('should construct fields just using the classnames', function(){
@@ -112,5 +114,28 @@ describe('Schema', function(){
         assert.equal(imported.exists, null);
         assert.deepEqual(imported.tags, []);
         assert.deepEqual(imported.some_numbers, []);
+    });
+
+    it("should allow a bloom filter", function(){
+        var schema = new Schema('Song', 'song', 'id', {
+                'id': NumberField,
+                'lovers': BloomFilterField
+            }), data, imported;
+
+        imported = schema.import(schema.export({}));
+
+        // Should unserialize it with a default bloom filter
+        assert(typeof imported.lovers.add === 'function');
+
+        // Adding to default bloom should be correct.
+        imported.lovers.add(new Buffer("lucas"));
+
+        assert(imported.lovers.has(new Buffer("lucas")));
+
+        data = schema.export(imported);
+        imported = schema.import(data);
+        // Serializing out and then back in should still be correct.
+        assert(data.lovers.has(new Buffer("lucas")));
+
     });
 });
