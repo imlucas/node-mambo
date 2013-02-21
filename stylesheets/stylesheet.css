@@ -177,7 +177,7 @@ pre, code {
 pre {
   width: 100%;
   padding: 10px;
-  box-shadow: 0 0 10px rgba(0,0,0,.1);
+  box-shadow: 0 0 2px rgba(0,0,0,.3);
   overflow: auto;
   background: #f1f4f5;
 }
@@ -185,7 +185,7 @@ pre {
 code {
   padding: 3px;
   margin: 0 3px;
-  box-shadow: 0 0 10px rgba(0,0,0,.1);
+  box-shadow: 0 0 2px rgba(0,0,0,.3);
   background: #f1f4f5;
 }
 
