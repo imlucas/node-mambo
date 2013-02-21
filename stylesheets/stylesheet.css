@@ -395,7 +395,12 @@ Full-Width Styles
 }
 
 #footer_wrap {
-  background: #212121;
+  background: #202425;
+  background: -moz-linear-gradient(top, #272c2d, #151919);
+  background: -webkit-linear-gradient(top, #272c2d,#151919);
+  background: -ms-linear-gradient(top, #272c2d,#151919);
+  background: -o-linear-gradient(top, #272c2d,#151919);
+  background: linear-gradient(top, #272c2d,#151919);
   text-align: center;
 }
 
