@@ -325,6 +325,15 @@ Full-Width Styles
   background: linear-gradient(top, #272c2d,#151919);
 }
 
+#header_wrap .logo {
+  float: right;
+  text-indent: 0px;
+  padding-top: 13px;
+  padding-left: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+}
+
 #header_wrap .inner {
   padding: 50px 10px 30px 10px;
 }
