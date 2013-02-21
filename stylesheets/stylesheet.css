@@ -5,6 +5,27 @@ by Jason Costello, @jsncostello
 
 @import url(pygment_trac.css);
 
+@font-face {
+  font-family: 'DINBold';
+  src: url('http://ex.fm/static/css/fonts/din-bold-webfont.eot');
+  src: url('http://ex.fm/static/css/fonts/din-bold-webfont.eot?#iefix') format('embedded-opentype'), url('http://ex.fm/static/css/fonts/din-bold-webfont.woff') format('woff'), url('http://ex.fm/static/css/fonts/din-bold-webfont.ttf') format('truetype'), url('http://ex.fm/static/css/fonts/din-bold-webfont.svg#DINBold') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'DINMedium';
+  src: url('http://ex.fm/static/css/fonts/din-medium-webfont.eot?#iefix') format('embedded-opentype'), url('http://ex.fm/static/css/fonts/din-medium-webfont.woff') format('woff'), url('http://ex.fm/static/css/fonts/din-medium-webfont.ttf') format('truetype'), url('http://ex.fm/static/css/fonts/din-medium-webfont.svg#DINMedium') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'DINRegular';
+  src: url('http://ex.fm/static/css/fonts/din-regular-webfont.eot');
+  src: url('http://ex.fm/static/css/fonts/din-regular-webfont.eot?#iefix') format('embedded-opentype'), url('http://ex.fm/static/css/fonts/din-regular-webfont.woff') format('woff'), url('http://ex.fm/static/css/fonts/din-regular-webfont.ttf') format('truetype'), url('http://ex.fm/static/css/fonts/din-regular-webfont.svg#DINRegular') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
 /*******************************************************************************
 MeyerWeb Reset
 *******************************************************************************/
@@ -69,7 +90,7 @@ h1, h2, h3, h4, h5, h6 {
   margin: 10px 0;
   font-weight: 700;
   color:#333333;
-  font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
+  font-family: "DINMedium",sans-serif;
   letter-spacing: -1px;
 }
 
