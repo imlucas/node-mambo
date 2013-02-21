@@ -459,4 +459,5 @@ Small Device Styles
   width: 115px;
   height: 45px;
   display: block;
+  text-indent: -1000px;
 }
