@@ -18,8 +18,6 @@ var aws = require("plata"),
 
 var instances = [];
 
-
-
 // Models have many tables.
 function Model(){
     this.connected = false;
@@ -106,7 +104,7 @@ Model.prototype.getDB = function(key, secret){
         self.emit('successful', err);
     })
     .on('stat', function(data){
-        log.silly('Action ' + data.action + ' consumed ' + data.consumed + ' units.');
+        log.silly(data.action + ' consumed ' + data.consumed + ' units.');
         self.emit('stat', data);
     });
 
@@ -190,7 +188,7 @@ Model.prototype.ensureTableExists = function(alias){
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
     var schema = this.schema(alias),
         request;
-    log.debug('Get `'+alias+'` with hash `'+hash+'` and range `'+range+'`');
+    log.debug('Get `'+alias+'` with hash `'+hash + ((range !== undefined) ? '` and range `'+range+'`': ''));
 
     // Assemble the request data
     request = {
@@ -532,8 +530,9 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
 Model.prototype.updateItem = function(alias, hash, attrs, opts){
     opts = opts || {};
 
-    log.debug('Update `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
-    log.debug(util.inspect(attrs, false, 5));
+    log.debug('Update `'+alias+'` with hash `'+hash + '`' +
+        ((opts.range !== undefined) ? ' and range `'+opts.range+'` ': ' ') +
+        ' do => ' + util.inspect(attrs, false, 5));
 
     var d = when.defer(),
         response = [],
