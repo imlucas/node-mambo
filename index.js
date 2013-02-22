@@ -752,79 +752,142 @@ Model.prototype.runScan = function(alias, filter, opts){
 };
 
 
-// # DANGER: THIS WILL DROP YOUR TABLES AND SHOULD ONLY BE USED IN TESTING.
-Model.prototype.recreateTable = function(alias) {
-    var self = this,
-        schema = this.schema(alias),
-        tableRequest = {
-            'TableName': schema.tableName
-        },
-        tableDescription = {};
-
-    // if (process.env.NODE_ENV !== 'testing') {
-    //     throw new Error('Can only recreate a table in testing environment');
-    // }
-    return this.db.describeTable(tableRequest)
-        .then(function(next, data){
-            tableDescription = data;
-            return self.db.deleteTable(tableRequest);
-        })
-        .then(function(){
-            tableRequest.KeySchema = tableDescription.Table.KeySchema;
-            tableRequest.ProvisionedThroughput = tableDescription.Table.ProvisionedThroughput;
-            return self.isTableDeleted(schema.tableName);
-        })
-        .then(function(){
-            return self.db.createTable(tableRequest);
-        })
-        .then(function(){
-            return self.isTableActive(schema.tableName);
-        })
-        .then(function(){
-            return true;
-        });
-};
-
-Model.prototype.isTableDeleted = function(tableName){
+Model.prototype.waitForTableStatus = function(alias, status){
     var d = when.defer(),
-        self = this;
+        self = this,
+        tableName = this.schema(alias).tableName;
 
-    this.db.describeTable({'TableName': tableName}).then(function(data){
-        if (!data) {
-            d.resolve(true);
-        }
-        else {
-            setTimeout(function(){
-                self.isTableDeleted(tableName).then(function(_){
-                    d.resolve(_);
-                });
-            }, 5000);
-        }
-    });
-    return d.promise;
-};
-
-Model.prototype.isTableActive = function(tableName){
-    var d = when.defer(),
-        self = this;
-
-    this.db.describeTable({'TableName': tableName}).then(function(data){
-        if (data.Table.TableStatus === 'ACTIVE') {
+    this.getDB().describeTable({'TableName': tableName}).then(function(data){
+        if(status === 'DELETED' && !data){
             return d.resolve(true);
         }
-        else {
-            setTimeout(function(){
-                self.isTableActive(tableName).then(function(_){
-                    d.resolve(_);
-                });
-            }, 5000);
+        if(data && data.Table.TableStatus === status){
+            return d.resolve(true);
         }
+        setTimeout(function(){
+            self.waitForTableStatus(alias, status).then(function(_){
+                d.resolve(_);
+            });
+        }, 50);
     });
     return d.promise;
 };
 
+Model.prototype.waitForTableDelete = function(alias){
+    return this.waitForTableStatus(alias, 'DELETED');
+};
+
+Model.prototype.waitForTableCreation = function(alias){
+    return this.waitForTableStatus(alias, 'ACTIVE');
+};
+
+Model.prototype.deleteTable = function(alias){
+    return this.getDB().deleteTable({'TableName': this.schema(alias).tableName});
+};
+
+Model.prototype.createTable = function(alias, read, write){
+    read = read || 10;
+    write = write || 10;
+
+    var schema = this.schema(alias);
+
+    return this.getDB().createTable({
+        'TableName': schema.tableName,
+        'KeySchema': schema.getKeySchema(),
+        'ProvisionedThroughput': {
+            'ReadCapacityUnits': read,
+            'WriteCapacityUnits': write
+        }
+    });
+};
 module.exports.Model = Model;
 module.exports.Schema = Schema;
 Object.keys(fields).forEach(function(fieldName){
     module.exports[fieldName] = fields[fieldName];
 });
+module.exports.instances = instances;
+
+module.exports.connect = function(key, secret, prefix, region){
+    instances.forEach(function(instance){
+        instance.connect(key, secret, prefix, region);
+    });
+};
+
+module.exports.createAll = function(){
+    return when.all(instances.map(function(instance){
+        return instance.createAll();
+    }));
+};
+
+
+module.exports.testing = function(){
+    return function(){
+        var magneto = require('magneto');
+
+        magneto.server = null;
+        // plog.find(/magneto*/).level('silly');
+
+        process.env.MAMBO_BACKEND = 'magneto';
+
+        module.exports.recreateTable = function(instance, alias){
+            return instance.deleteTable(alias).then(function(){
+                return instance.createTable(alias);
+            });
+        };
+
+        // Drop all tables for all instances and rebuild them.
+        module.exports.recreateAll = function(){
+            return when.all(instances.map(function(instance){
+                return when.all(Object.keys(instance.schemasByAlias).map(function(alias){
+                    return module.exports.recreateTable(instance, alias);
+                }));
+            }));
+        };
+
+        module.exports.dropAll = function(){
+            return when.all(instances.map(function(instance){
+                return when.all(Object.keys(instance.schemasByAlias).map(function(alias){
+                    return instance.deleteTable(alias);
+                }));
+            }));
+        };
+
+
+        module.exports.testing = {};
+
+        module.exports.testing.before = function(done){
+            log.debug('Starting magneto on port 8081...');
+            magneto.server = magneto.listen(8081, function(){
+                log.debug('Recreating all tables for testing...');
+                module.exports.createAll().then(function(){
+                    if(done){
+                        return done();
+                    }
+                    return true;
+                });
+            });
+        };
+
+        module.exports.testing.afterEach = function(done){
+            module.exports.recreateAll().then(function(){
+                if(done){
+                    return done();
+                }
+                return true;
+            });
+        };
+
+        module.exports.testing.after = function(done){
+            module.exports.dropAll().then(function(){
+                if(done){
+                    return done();
+                }
+                return true;
+            });
+        };
+    };
+};
+
+module.exports.use = function(fn){
+    fn();
+};
