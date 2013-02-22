@@ -535,7 +535,8 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     log.debug('Update `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
     log.debug(util.inspect(attrs, false, 5));
 
-    var response = [],
+    var d = when.defer(),
+        response = [],
         schema = this.schema(alias),
         request = {
             'TableName': schema.tableName,
@@ -584,16 +585,17 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     log.silly('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    return this.getDB().updateItem(request).then(function(data){
+    this.getDB().updateItem(request).then(function(data){
         log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
         if (opts.returnValues !== undefined) {
             return schema.import(data.Attributes);
         }
-        return data;
+        d.resolve(data);
     }, function(err){
-        log.error('UPDATE_ITEM: ' + err.message + '\n' + err.stack);
-        return err;
+        log.error('UPDATE_ITEM: ' + err.message + ((err.stack) ? '\n' + err.stack: ''));
+        d.reject(err);
     });
+    return d.promise;
 };
 
 // usage:
@@ -852,12 +854,8 @@ module.exports.testing = function(){
             }));
         };
 
-
-        module.exports.testing = {};
-
         module.exports.testing.before = function(done){
-            log.debug('Starting magneto on port 8081...');
-            magneto.server = magneto.listen(8081, function(){
+            function onReady(){
                 log.debug('Recreating all tables for testing...');
                 module.exports.createAll().then(function(){
                     if(done){
@@ -865,6 +863,13 @@ module.exports.testing = function(){
                     }
                     return true;
                 });
+            }
+            if(magneto.server){
+                return onReady();
+            }
+            log.debug('Starting magneto on port 8081...');
+            magneto.server = magneto.listen(8081, function(){
+                onReady();
             });
         };
 
