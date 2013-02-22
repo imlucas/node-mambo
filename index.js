@@ -16,10 +16,15 @@ var aws = require("plata"),
     plog = require('plog'),
     log = plog('mambo').level('error');
 
+var instances = [];
+
+
 
 // Models have many tables.
 function Model(){
     this.connected = false;
+    this.db = null;
+
     this.schemas = Array.prototype.slice.call(arguments, 0);
     this.schemasByAlias = {};
 
@@ -28,6 +33,7 @@ function Model(){
     }.bind(this));
 
     this.tablesByName = {};
+    instances.push(this);
 }
 util.inherits(Model, EventEmitter);
 
