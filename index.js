@@ -587,7 +587,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     this.getDB().updateItem(request).then(function(data){
         log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
         if (opts.returnValues !== undefined) {
-            return schema.import(data.Attributes);
+            return d.resolve(schema.import(data.Attributes));
         }
         d.resolve(data);
     }, function(err){
