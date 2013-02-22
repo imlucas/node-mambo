@@ -201,7 +201,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     }
 
     log.silly('Built GET_ITEM request: ' + util.inspect(request, false, 5));
-    return this.db.getItem(request).then(function(data){
+    return this.getDB().getItem(request).then(function(data){
         log.silly('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
         return (data.Item !== undefined) ?
                 this.schema(alias).import(data.Item) : null;
@@ -253,7 +253,7 @@ Model.prototype.delete = function(alias, hash, opts){
     log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
-    return this.db.deleteItem(request).then(function(data){
+    return this.getDB().deleteItem(request).then(function(data){
         log.silly('DELETE_ITEM returned: ' + util.inspect(data, false, 5));
         return data;
     }.bind(this), function(err){
@@ -339,7 +339,7 @@ Model.prototype.batchGet = function(req){
     log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
-    return this.db.batchGetItem(request).then(function(data){
+    return this.getDB().batchGetItem(request).then(function(data){
         log.silly('BATCH_GET returned: ' + util.inspect(data, false, 5));
 
         // translate the response from dynamo format to exfm format
@@ -430,7 +430,7 @@ Model.prototype.batchWrite = function(puts, deletes){
     }
 
     log.silly('Built BATCH_WRITE request: ' + util.inspect(req, false, 10));
-    return this.db.batchWriteItem(req).then(function(data){
+    return this.getDB().batchWriteItem(req).then(function(data){
         log.silly('BATCH_WRITE returned: ' + util.inspect(data, false, 5));
         var success = {};
         Object.keys(data.Responses).forEach(function(tableName){
@@ -500,7 +500,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.silly('Built PUT request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    return this.db.putItem(request).then(function(data){
+    return this.getDB().putItem(request).then(function(data){
         log.silly('PUT returned: ' + util.inspect(data, false, 5));
         return obj;
     }, function(err){
@@ -578,7 +578,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     log.silly('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    return this.db.updateItem(request).then(function(data){
+    return this.getDB().updateItem(request).then(function(data){
         log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
         if (opts.returnValues !== undefined) {
             return schema.import(data.Attributes);
@@ -671,7 +671,7 @@ Model.prototype.query = function(alias, hash, opts){
     log.silly('Built QUERY request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    return this.db.query(request).then(function(data){
+    return this.getDB().query(request).then(function(data){
         log.silly('QUERY returned: ' + util.inspect(data, false, 5));
 
         return data.Items.map(function(item){
@@ -736,7 +736,7 @@ Model.prototype.runScan = function(alias, filter, opts){
     log.silly('Built SCAN request: ' + util.inspect(req, false, 10));
 
     // Make the request
-    return this.db.scan(req).then(function(data){
+    return this.getDB().scan(req).then(function(data){
         log.silly('SCAN returned: ' + util.inspect(data, false, 5));
         return new Scanner.ScanResult(self, alias, data);
     }, function(err){
