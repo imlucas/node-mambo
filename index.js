@@ -553,13 +553,17 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         // if(attr.attributeName != schema.hash && attr.attributeName != schema.range){
             var field = schema.field(attr.attributeName),
                 attributeUpdate = {
-                    'Value': {},
                     'Action': attr.action || 'PUT'
                 };
             if(!field){
                 throw new Error('Unknown field ' + attr.attributeName);
             }
-            attributeUpdate.Value[field.type] = field.export(attr.newValue);
+
+            if(attr.newValue !== undefined){
+                attributeUpdate.Value = {};
+                attributeUpdate.Value[field.type] = field.export(attr.newValue);
+            }
+
             request.AttributeUpdates[attr.attributeName] = attributeUpdate;
         // }
     }.bind(this));
