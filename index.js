@@ -142,18 +142,17 @@ Model.prototype.connect = function(key, secret, prefix, region){
 // Create all tables as defined by this models schemas.
 Model.prototype.createAll = function(){
     var d = when.defer();
-    when.all(Object.keys(this.schemasByAlias).map(this.ensureTableMagneto.bind(this)),
+    when.all(Object.keys(this.schemasByAlias).map(this.ensureTableExists.bind(this)),
         d.resolve);
 
     return d.promise;
 };
 
-// Checks if all tables exist in magneto.  If a table doesn't exist
-// it will be created.
-Model.prototype.ensureTableMagneto = function(alias){
+// Check if a table already exists.  If not, create it.
+Model.prototype.ensureTableExists = function(alias){
     var self = this;
-    log.silly('Ensure magneto table...' + alias);
-    return this.db.listTables().then(function(data){
+    log.silly('Making sure table `' + alias + '` exists');
+    return this.getDB().listTables().then(function(data){
         if(data.TableNames.indexOf(self.schema(alias).tableName) !== -1){
             log.silly('Table already exists ' + alias);
             return false;
