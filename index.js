@@ -86,8 +86,14 @@ Model.prototype.batch = function(){
 
 // Actually connect to dynamo or magneto.
 Model.prototype.getDB = function(key, secret){
-    var self = this;
+    if(this.db !== null){
+        return this.db;
+    }
 
+    var self = this;
+    if(!key || !secret){
+        log.warn('Calling connect without key/secret?');
+    }
     aws.connect({'key': key, 'secret': secret});
     this.db = aws.dynamo;
 
