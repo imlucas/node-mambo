@@ -19,8 +19,8 @@
     "plog": "0.0.4"
   },
   "devDependencies": {
-    "mocha": "1.6.0",
-    "magneto": "0.1.5"
+    "mocha": "1.8.1",
+    "magneto": "0.1.6"
   },
   "optionalDependencies": {},
   "engines": {
