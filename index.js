@@ -14,7 +14,7 @@ var aws = require("plata"),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
     plog = require('plog'),
-    log = plog('mambo').level('silly');
+    log = plog('mambo').level('error');
 
 var instances = [];
 
