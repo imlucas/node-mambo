@@ -185,7 +185,7 @@ Model.prototype.ensureTableExists = function(alias){
 // - attributesToGet: An array of names of attributes to return in each
 // - object. If empty, get all attributes.
 // - consistentRead: boolean
-Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
+Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead, suffix){
     var d = when.defer(),
         schema = this.schema(alias),
         request;
@@ -193,7 +193,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 
     // Assemble the request data
     request = {
-        'TableName': schema.tableName,
+        'TableName': schema.getTableName(suffix),
         'Key': schema.exportKey(hash, range)
     };
 
@@ -237,7 +237,7 @@ Model.prototype.delete = function(alias, hash, opts){
 
     var schema = this.schema(alias),
         request = {
-            'TableName': schema.tableName,
+            'TableName': schema.getTableName(opts.suffix),
             'Key': schema.exportKey(hash, opts.range),
             'ReturnValues': opts.returnValues || 'NONE'
         };
@@ -326,21 +326,25 @@ Model.prototype.batchGet = function(req){
         },
         results = {},
         schema,
-        obj;
+        obj,
+        tableNameToSchema = {};
 
     // Assemble the request data
     req.forEach(function(item){
+        var tableName = schema.getTableName(req.suffix);
+        tableNameToSchema[tableName] = schema;
+
         item.ranges = item.ranges || [];
 
         schema = this.schema(item.alias);
-        request.RequestItems[schema.tableName] = {'Keys': []};
-        request.RequestItems[schema.tableName].Keys = item.hashes.map(function(hash, index){
+        request.RequestItems[tableName] = {'Keys': []};
+        request.RequestItems[tableName].Keys = item.hashes.map(function(hash, index){
             return schema.exportKey(hash, item.ranges[index]);
         });
 
         // Add attributesToGet
         if(item.attributesToGet){
-            request.RequestItems[schema.tableName].AttributesToGet = item.attributesToGet;
+            request.RequestItems[tableName].AttributesToGet = item.attributesToGet;
         }
     }.bind(this));
 
@@ -479,13 +483,16 @@ Model.prototype.batchWrite = function(puts, deletes){
 //     'version': {'Value': 0, 'Exists': true}
 // }
 // returnValues: See AWS docs for an explanation.
-Model.prototype.put = function(alias, obj, expected, returnOldValues){
+Model.prototype.put = function(alias, obj, expected, returnOldValues, suffix){
     log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
     var request,
         schema = this.schema(alias),
         clean = schema.export(obj);
 
-    request = {'TableName': schema.tableName, 'Item': schema.export(obj)};
+    request = {
+        'TableName': schema.getTableName(suffix),
+        'Item': schema.export(obj)
+    };
 
     if(expected && Object.keys(expected).length > 0){
         request.Expected = {};
@@ -542,7 +549,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         response = [],
         schema = this.schema(alias),
         request = {
-            'TableName': schema.tableName,
+            'TableName': schema.getTableName(opts.suffix),
             'Key': schema.exportKey(hash, opts.range),
             'AttributeUpdates': {},
             'ReturnValues': opts.returnValues || 'NONE'
@@ -632,7 +639,7 @@ Model.prototype.query = function(alias, hash, opts){
     var response = [],
         schema = this.schema(alias),
         request = {
-            'TableName': schema.tableName
+            'TableName': schema.getTableName(opts.suffix)
         },
         obj,
         hashKey = {},
@@ -719,7 +726,7 @@ Model.prototype.runScan = function(alias, filter, opts){
     var self = this,
         schema = this.schema(alias),
         req = {
-            'TableName': schema.tableName,
+            'TableName': schema.getTableName(opts.suffix),
             'ScanFilter': {}
         };
 
@@ -794,21 +801,24 @@ Model.prototype.deleteTable = function(alias){
     return this.getDB().deleteTable({'TableName': this.schema(alias).tableName});
 };
 
-Model.prototype.createTable = function(alias, read, write){
-    read = read || 10;
-    write = write || 10;
+Model.prototype.createTable = function(alias, opts){
+    opts = opts || {};
+
+    opts.read = opts.read || 10;
+    opts.write = opts.write || 10;
 
     var schema = this.schema(alias);
 
     return this.getDB().createTable({
-        'TableName': schema.tableName,
+        'TableName': schema.getTableName(opts.suffix),
         'KeySchema': schema.getKeySchema(),
         'ProvisionedThroughput': {
-            'ReadCapacityUnits': read,
-            'WriteCapacityUnits': write
+            'ReadCapacityUnits': opts.read,
+            'WriteCapacityUnits': opts.write
         }
     });
 };
+
 module.exports.Model = Model;
 module.exports.Schema = Schema;
 Object.keys(fields).forEach(function(fieldName){
