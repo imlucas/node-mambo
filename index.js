@@ -37,7 +37,12 @@ util.inherits(Model, EventEmitter);
 
 // Grab a schema definition by alias.
 Model.prototype.schema = function(alias){
-    return this.schemasByAlias[alias];
+    var s = this.schemasByAlias[alias];
+    if(!s){
+        throw new Error('Counldn\'t find schema for `'+alias+
+            '`.  Did you mistype or forget to register your schema?');
+    }
+    return s;
 };
 
 Model.prototype.tableNameToAlias = function(name){
