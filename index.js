@@ -14,7 +14,7 @@ var aws = require("plata"),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
     plog = require('plog'),
-    log = plog('mambo').level('error');
+    log = plog('mambo').level('silly');
 
 var instances = [];
 
@@ -186,7 +186,8 @@ Model.prototype.ensureTableExists = function(alias){
 // - object. If empty, get all attributes.
 // - consistentRead: boolean
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
-    var schema = this.schema(alias),
+    var d = when.defer(),
+        schema = this.schema(alias),
         request;
     log.debug('Get `'+alias+'` with hash `'+hash + ((range !== undefined) ? '` and range `'+range+'`': ''));
 
@@ -205,14 +206,17 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
     }
 
     log.silly('Built GET_ITEM request: ' + util.inspect(request, false, 5));
-    return this.getDB().getItem(request).then(function(data){
+
+    this.getDB().getItem(request).then(function(data){
         log.silly('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
-        return (data.Item !== undefined) ?
-                this.schema(alias).import(data.Item) : null;
+        return d.resolve((data.Item !== undefined) ?
+                this.schema(alias).import(data.Item) : null);
     }.bind(this), function(err){
         log.error('GET_ITEM: ' + err.message + '\n' + err.stack);
-        return err;
+        return d.reject(err);
     });
+
+    return d.promise;
 };
 
 // Lowlevel delete item wrapper
@@ -877,7 +881,7 @@ module.exports.testing = function(){
         };
 
         module.exports.testing.afterEach = function(done){
-            module.exports.recreateAll().then(function(){
+            return module.exports.recreateAll().then(function(){
                 if(done){
                     return done();
                 }
@@ -886,7 +890,7 @@ module.exports.testing = function(){
         };
 
         module.exports.testing.after = function(done){
-            module.exports.dropAll().then(function(){
+            return module.exports.dropAll().then(function(){
                 if(done){
                     return done();
                 }
