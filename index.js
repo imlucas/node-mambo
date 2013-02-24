@@ -246,7 +246,8 @@ Model.prototype.delete = function(alias, hash, opts){
 
     log.debug('Delete `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
 
-    var schema = this.schema(alias),
+    var self = this,
+        schema = this.schema(alias),
         request = {
             'TableName': schema.tableName,
             'Key': schema.exportKey(hash, opts.range),
@@ -274,6 +275,7 @@ Model.prototype.delete = function(alias, hash, opts){
     // Make the request
     return this.getDB().deleteItem(request).then(function(data){
         log.silly('DELETE_ITEM returned: ' + util.inspect(data, false, 5));
+        self.emit('delete', [alias, hash, opts.range]);
         return data;
     }.bind(this), function(err){
         log.error('DELETE_ITEM: ' + err.message + '\n' + err.stack);
@@ -492,7 +494,8 @@ Model.prototype.batchWrite = function(puts, deletes){
 // returnValues: See AWS docs for an explanation.
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
-    var request,
+    var self = this,
+        request,
         schema = this.schema(alias),
         clean = schema.export(obj);
 
@@ -521,6 +524,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     // Make the request
     return this.getDB().putItem(request).then(function(data){
         log.silly('PUT returned: ' + util.inspect(data, false, 5));
+        self.emit('insert', [alias, obj, expected, returnOldValues]);
         return obj;
     }, function(err){
         log.error('PUT: ' + err.message + '\n' + err.stack);
@@ -550,6 +554,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         ' do => ' + util.inspect(attrs, false, 5));
 
     var d = when.defer(),
+        self = this,
         response = [],
         schema = this.schema(alias),
         request = {
@@ -605,6 +610,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     // Make the request
     this.getDB().updateItem(request).then(function(data){
         log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
+        self.emit('update', [alias, hash, attrs, opts]);
         if (opts.returnValues !== undefined) {
             return d.resolve(schema.import(data.Attributes));
         }
@@ -802,14 +808,23 @@ Model.prototype.waitForTableCreation = function(alias){
 };
 
 Model.prototype.deleteTable = function(alias){
-    return this.getDB().deleteTable({'TableName': this.schema(alias).tableName});
+    var self = this;
+
+    return this.getDB().deleteTable({
+        'TableName': this.schema(alias).tableName
+    })
+    .then(function(res){
+        self.emit('delete table', alias);
+        return res;
+    });
 };
 
 Model.prototype.createTable = function(alias, read, write){
     read = read || 10;
     write = write || 10;
 
-    var schema = this.schema(alias);
+    var schema = this.schema(alias),
+        self = this;
 
     return this.getDB().createTable({
         'TableName': schema.tableName,
@@ -818,6 +833,9 @@ Model.prototype.createTable = function(alias, read, write){
             'ReadCapacityUnits': read,
             'WriteCapacityUnits': write
         }
+    }).then(function(res){
+        self.emit('create table', alias, read, write);
+        return res;
     });
 };
 
