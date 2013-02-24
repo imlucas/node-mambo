@@ -18,6 +18,12 @@ var aws = require("plata"),
 
 var instances = [];
 
+var emptyPromise = function(val){
+    var d = when.defer();
+    d.resolve(val);
+    return d.promise;
+};
+
 // Models have many tables.
 function Model(){
     this.connected = false;
@@ -814,6 +820,72 @@ Model.prototype.createTable = function(alias, read, write){
         }
     });
 };
+
+Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks){
+    var self = this,
+        schema = self.schema(alias);
+
+    function exec(batch){
+        if(!batch){
+            batch = self.batch();
+        }
+        return self.get(alias, oldHash).then(function(obj){
+            obj[schema.hash] = newHash;
+            return batch
+                .remove(alias, oldHash)
+                .insert(alias, obj)
+                .commit()
+                .then(function(){
+                    return obj;
+                });
+        });
+    }
+    if(includeLinks){
+        return this.updateLinks(alias, oldHash, newHash, true).then(exec);
+    }
+    return exec();
+};
+
+Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch){
+    var self = this,
+        schema = self.schema(alias),
+        batch = self.batch();
+
+    log.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
+    if(Object.keys(schema.links).length === 0){
+        log.warn('No links for `'+alias+'`.  Did you mean to call this?');
+        return emptyPromise();
+    }
+    log.debug('Links: ' + util.inspect(schema.links));
+
+    return when.all(Object.keys(schema.links).map(function(linkAlias){
+        log.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
+
+        var linkKey = schema.links[linkAlias],
+            rangeKey = Schema.get(linkAlias).range;
+
+        return self.objects(linkAlias, oldHash).fetch().then(function(docs){
+            log.debug('Got ' + docs.length + ' links');
+            docs.map(function(doc){
+                doc[linkKey] = newHash;
+                if(rangeKey){
+                    batch.remove(linkAlias, oldHash, doc[rangeKey]);
+                }
+                else{
+                    batch.remove(linkAlias, oldHash);
+                }
+                batch.insert(linkAlias, doc);
+            });
+        });
+    }))
+    .then(function(){
+        if(returnBatch){
+            return batch;
+        }
+        return batch.commit();
+    });
+};
+
 module.exports.Model = Model;
 module.exports.Schema = Schema;
 Object.keys(fields).forEach(function(fieldName){

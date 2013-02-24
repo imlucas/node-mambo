@@ -23,7 +23,7 @@ var songSchema = new Schema('Song', 'song', 'id', {
     'recent_loves': JSONField,
     'tags': StringSetField,
     'no_ones': NumberSetField
-});
+}).linksTo('loves', 'id');
 
 var loveSchema = new Schema('SongLoves', 'loves', ['id', 'created'], {
     'id': NumberField,
@@ -182,5 +182,110 @@ describe('Model', function(){
                 'Exists': false
             }
         });
+    });
+
+    // it("should update hash via links", function(done){
+    //     // require('plog').all().level('silly');
+    //     Song.insert('song')
+    //         .set({'id': 5, 'title': 'Test'})
+    //         .commit()
+    //         .then(function(){
+    //             return Song.updateHash('song', 5, 6);
+    //         })
+    //         .then(function(){
+    //             return Song.get('song', 5);
+    //         })
+    //         .then(function(old){
+    //             assert(old === null);
+    //             return Song.get('song', 6);
+    //         })
+    //         .then(function(song){
+    //             assert(song.id === 2);
+    //             assert(song.title === 'Test');
+    //         })
+    //         .then(function(){
+    //             done();
+    //         });
+    // });
+
+    // it("should update linked data", function(done){
+    //     var now = Date.now();
+
+    //     Song.insert('song')
+    //         .set({'id': 1, 'title': 'Test'})
+    //         .commit()
+    //         .then(function(){
+    //             return Song.insert('loves')
+    //                 .set({
+    //                     'id': 1,
+    //                     'username': 'lucas',
+    //                     'created': now
+    //                 })
+    //                 .commit();
+    //         })
+    //         .then(function(){
+    //             return Song.objects('loves', 1).fetch();
+    //         })
+    //         .then(function(docs){
+    //             assert(docs.length === 1);
+    //         })
+    //         .then(function(){
+    //             return Song.updateLinks('song', 1, 2);
+    //         })
+    //         .then(function(){
+    //             return Song.objects('loves', 1).fetch();
+    //         })
+    //         .then(function(docs){
+    //             assert(docs.length === 0);
+    //         })
+    //         .then(function(){
+    //             return Song.objects('loves', 2).fetch();
+    //         })
+    //         .then(function(docs){
+    //             assert(docs.length === 1);
+    //         }).then(function(){
+    //             done();
+    //         });
+    // });
+
+    it("should update primary doc and all linked data in one call", function(done){
+        // require('plog').all().level('silly');
+        var now = Date.now();
+
+        Song.insert('song')
+            .set({'id': 3, 'title': 'Test'})
+            .commit()
+            .then(function(){
+                return Song.insert('loves')
+                    .set({
+                        'id': 3,
+                        'username': 'lucas',
+                        'created': now
+                    })
+                    .commit();
+            })
+            .then(function(){
+                return Song.objects('loves', 3).fetch();
+            })
+            .then(function(docs){
+                assert(docs.length === 1);
+            })
+            .then(function(){
+                return Song.updateHash('song', 3, 4, true);
+            })
+            .then(function(){
+                return Song.objects('loves', 3).fetch();
+            })
+            .then(function(docs){
+                assert(docs.length === 0);
+            })
+            .then(function(){
+                return Song.objects('loves', 4).fetch();
+            })
+            .then(function(docs){
+                assert(docs.length === 1);
+            }).then(function(){
+                done();
+            });
     });
 });

@@ -113,4 +113,18 @@ describe('Schema', function(){
         assert.deepEqual(imported.tags, []);
         assert.deepEqual(imported.some_numbers, []);
     });
+
+    describe("Links", function(){
+        it("should allow declaring links", function(){
+            var schema = new Schema('Song', 'song', 'id', {
+                    'id': NumberField,
+                    'title': StringField
+                }).linksTo('loves', 'song_id'),
+                loveSchema = new Schema('Loves', 'loves', ['song_id', 'timestamp'], {
+                    'song_id': NumberField,
+                    'timestamp': NumberField
+                });
+            assert.deepEqual(schema.links, {'loves': 'song_id'});
+        });
+    });
 });
