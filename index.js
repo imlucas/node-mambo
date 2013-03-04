@@ -14,7 +14,7 @@ var aws = require("plata"),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
     plog = require('plog'),
-    log = plog('mambo').level('error');
+    log = plog('mambo');
 
 var instances = [];
 
@@ -923,12 +923,11 @@ module.exports.createAll = function(){
     }));
 };
 
+var magneto = require('magneto');
 
 module.exports.testing = function(){
     return function(){
-        var magneto = require('magneto');
-
-        magneto.server = null;
+        magneto.server = magneto.server || null;
         // plog.find(/magneto*/).level('silly');
 
         process.env.MAMBO_BACKEND = 'magneto';
@@ -985,10 +984,12 @@ module.exports.testing = function(){
         };
 
         module.exports.testing.after = function(done){
-            if(magneto.server){
-                magneto.server.close();
-            }
             return module.exports.dropAll().then(function(){
+                if(magneto.server){
+                    log.debug('Stopping magneto');
+                    magneto.server.close();
+                    magneto.server = null;
+                }
                 if(done){
                     return done();
                 }
