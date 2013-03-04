@@ -1,3 +1,10 @@
+## 0.0.16
+
+ * [6130aa1](https://github.com/exfm/node-mambo/commit/6130aa1): Fixes magneto problems with tests just hanging - [imlucas](https://github.com/imlucas), Mon Mar 4 12:50:50 2013 -0500
+ * [8f3ae50](https://github.com/exfm/node-mambo/commit/8f3ae50): Need to kill magneto - [imlucas](https://github.com/imlucas), Mon Mar 4 11:33:15 2013 -0500
+ * [2162d9f](https://github.com/exfm/node-mambo/commit/2162d9f): Forgot to bump version.  Should really automate this... - [imlucas](https://github.com/imlucas), Mon Mar 4 11:26:27 2013 -0500
+ * [3ac625e](https://github.com/exfm/node-mambo/commit/3ac625e): Release 0.0.15 - [imlucas](https://github.com/imlucas), Mon Mar 4 11:25:56 2013 -0500
+
 ## 0.0.15
 
  * [b5cf6fb](https://github.com/exfm/node-mambo/commit/b5cf6fb): Emit some events - [imlucas](https://github.com/imlucas), Sat Feb 23 20:30:44 2013 -0500
