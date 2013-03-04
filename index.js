@@ -985,6 +985,9 @@ module.exports.testing = function(){
         };
 
         module.exports.testing.after = function(done){
+            if(magneto.server){
+                magneto.server.close();
+            }
             return module.exports.dropAll().then(function(){
                 if(done){
                     return done();
