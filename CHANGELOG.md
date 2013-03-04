@@ -1,3 +1,10 @@
+## 0.0.15
+
+ * [b5cf6fb](https://github.com/exfm/node-mambo/commit/b5cf6fb): Emit some events - [imlucas](https://github.com/imlucas), Sat Feb 23 20:30:44 2013 -0500
+ * [13364a0](https://github.com/exfm/node-mambo/commit/13364a0): Can now declare foreign key style links between schemas.  Adds helpers for changing hash values on a primary table and updating the hash value on any linked docs - [imlucas](https://github.com/imlucas), Sat Feb 23 19:55:33 2013 -0500
+ * [9d6d2d1](https://github.com/exfm/node-mambo/commit/9d6d2d1): Update latest dev deps - [imlucas](https://github.com/imlucas), Sat Feb 23 16:00:29 2013 -0500
+ * [0914f01](https://github.com/exfm/node-mambo/commit/0914f01): 0.0.14! - [imlucas](https://github.com/imlucas), Sat Feb 23 15:58:26 2013 -0500
+
 ## 0.0.14
 
  * [cc86803](https://github.com/exfm/node-mambo/commit/cc86803): Bump to 0.0.14 - [imlucas](https://github.com/imlucas), Sat Feb 23 15:57:35 2013 -0500
