@@ -37,6 +37,15 @@ function Model(){
     }.bind(this));
 
     this.tablesByName = {};
+
+    log.debug('Reading schemas...');
+    this.schemas.forEach(function(schema){
+        var tableName = (this.prefix || "") + schema.tableName;
+        schema.tableName = tableName;
+        this.schemasByAlias[schema.alias] = schema;
+        this.tablesByName[tableName] = schema;
+    }.bind(this));
+
     instances.push(this);
 }
 util.inherits(Model, EventEmitter);
@@ -138,14 +147,6 @@ Model.prototype.connect = function(key, secret, prefix, region){
     this.prefix = prefix;
     this.region = region;
     this.getDB(key, secret);
-
-    log.debug('Reading schemas...');
-    this.schemas.forEach(function(schema){
-        var tableName = (self.prefix || "") + schema.tableName;
-        schema.tableName = tableName;
-        self.schemasByAlias[schema.alias] = schema;
-        self.tablesByName[tableName] = schema;
-    });
 
     this.connected = true;
     log.debug('Ready.  Emitting connect.');
@@ -925,7 +926,7 @@ module.exports.createAll = function(){
 
 var magneto = require('magneto');
 
-module.exports.testing = function(){
+module.exports.testing = function(opts){
     return function(){
         magneto.server = magneto.server || null;
         // plog.find(/magneto*/).level('silly');
