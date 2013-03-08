@@ -115,16 +115,16 @@ Model.prototype.getDB = function(key, secret){
     aws.connect({'key': key, 'secret': secret});
     this.db = aws.dynamo;
 
-    aws.dynamo.on('retry', function(err){
-        log.warn('Retrying because of err ' + err);
-        self.emit('retry', err);
+    aws.dynamo.on('retry', function(req){
+        self.emit('retry', req);
     })
-    .on('successful retry', function(err){
-        log.warn('Retry suceeded after encountering error ' + err);
-        self.emit('successful', err);
+    .on('successful retry', function(req){
+        self.emit('successful retry', req);
+    })
+    .on('retries exhausted', function(req){
+        self.emit('retries exhausted', req);
     })
     .on('stat', function(data){
-        log.silly(data.action + ' consumed ' + data.consumed + ' units.');
         self.emit('stat', data);
     });
 

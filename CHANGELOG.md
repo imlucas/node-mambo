@@ -1,3 +1,9 @@
+## 0.0.17
+
+ * [cc0d16b](https://github.com/exfm/node-mambo/commit/cc0d16b): Stupid bug only affecting tests - [imlucas](https://github.com/imlucas), Tue Mar 5 18:42:24 2013 -0500
+ * [d542ad1](https://github.com/exfm/node-mambo/commit/d542ad1): Forgot to bump package version again - [imlucas](https://github.com/imlucas), Mon Mar 4 12:51:47 2013 -0500
+ * [a7c29af](https://github.com/exfm/node-mambo/commit/a7c29af): 0.0.16 - [imlucas](https://github.com/imlucas), Mon Mar 4 12:51:22 2013 -0500
+
 ## 0.0.16
 
  * [6130aa1](https://github.com/exfm/node-mambo/commit/6130aa1): Fixes magneto problems with tests just hanging - [imlucas](https://github.com/imlucas), Mon Mar 4 12:50:50 2013 -0500
