@@ -108,7 +108,7 @@ describe('Schema', function(){
         assert.equal(imported.id, 0);
         assert.equal(imported.title, null);
         assert.equal(imported.created, null);
-        assert.equal(imported.recent_loves, null);
+        assert.deepEqual(imported.recent_loves, {});
         assert.equal(imported.exists, null);
         assert.deepEqual(imported.tags, []);
         assert.deepEqual(imported.some_numbers, []);
