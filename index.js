@@ -144,6 +144,11 @@ Model.prototype.connect = function(key, secret, prefix, region){
     log.debug('Connecting...');
     var self = this;
 
+    key = key || process.env.AWS_ACCESS_KEY;
+    secret = secret || process.env.AWS_SECRET_KEY;
+    region = region || process.env.AWS_REGION || 'us-east-1';
+    prefix = prefix || process.env.MAMBO_PREFIX || '';
+
     this.prefix = prefix;
     this.region = region;
     this.getDB(key, secret);
