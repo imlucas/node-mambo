@@ -1,3 +1,11 @@
+## 0.0.18
+
+ * [8b034af](https://github.com/exfm/node-mambo/commit/8b034af): Fixes next key in scans.  Adds all() that automatically fetches and merges multiple subsequent requests into a single response - [imlucas](https://github.com/imlucas), Mon Mar 11 20:50:09 2013 -0400
+ * [7169e43](https://github.com/exfm/node-mambo/commit/7169e43): Need to wrap in a new deferred so rejections bubble properly - [imlucas](https://github.com/imlucas), Mon Mar 11 20:48:18 2013 -0400
+ * [ec2ca72](https://github.com/exfm/node-mambo/commit/ec2ca72): Whoop fix test - [imlucas](https://github.com/imlucas), Fri Mar 8 18:54:49 2013 -0500
+ * [6678848](https://github.com/exfm/node-mambo/commit/6678848): Refactor fields so you can specify your own defaults at runtime - [imlucas](https://github.com/imlucas), Fri Mar 8 18:48:54 2013 -0500
+ * [a70626f](https://github.com/exfm/node-mambo/commit/a70626f): Cleaner handling of dynamo events and latest plata - [imlucas](https://github.com/imlucas), Fri Mar 8 12:49:33 2013 -0500
+
 ## 0.0.17
 
  * [cc0d16b](https://github.com/exfm/node-mambo/commit/cc0d16b): Stupid bug only affecting tests - [imlucas](https://github.com/imlucas), Tue Mar 5 18:42:24 2013 -0500
