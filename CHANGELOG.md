@@ -1,3 +1,10 @@
+## 0.0.19
+
+ * [b2c8e8f](https://github.com/exfm/node-mambo/commit/b2c8e8f): Bump to 0.0.19 - [imlucas](https://github.com/imlucas), Tue Mar 12 14:57:22 2013 -0400
+ * [da89854](https://github.com/exfm/node-mambo/commit/da89854): Handle rejection properly - [imlucas](https://github.com/imlucas), Tue Mar 12 14:56:00 2013 -0400
+ * [4c40ddb](https://github.com/exfm/node-mambo/commit/4c40ddb): Fixes expect not to exist for puts - [imlucas](https://github.com/imlucas), Tue Mar 12 14:03:24 2013 -0400
+ * [db0ae29](https://github.com/exfm/node-mambo/commit/db0ae29): Allow configuring for connection in ENV vars - [imlucas](https://github.com/imlucas), Tue Mar 12 13:38:52 2013 -0400
+
 ## 0.0.18
 
  * [8b034af](https://github.com/exfm/node-mambo/commit/8b034af): Fixes next key in scans.  Adds all() that automatically fetches and merges multiple subsequent requests into a single response - [imlucas](https://github.com/imlucas), Mon Mar 11 20:50:09 2013 -0400
