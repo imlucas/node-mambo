@@ -511,11 +511,10 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
         request.Expected = {};
         Object.keys(expected).forEach(function(key){
             var field = schema.field(key);
-            request.Expected[key] = {
-                'Value': {}
-            };
+            request.Expected[key] = {};
             request.Expected[key].Exists = expected[key].Exists;
             if(expected[key].Value !== undefined){
+                request.Expected[key].Value = {};
                 request.Expected[key].Value[field.type] = field.export(expected[key].Value);
             }
         }.bind(this));
