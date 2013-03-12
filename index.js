@@ -501,6 +501,7 @@ Model.prototype.batchWrite = function(puts, deletes){
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
     var self = this,
+        d = when.defer(),
         request,
         schema = this.schema(alias),
         clean = schema.export(obj);
@@ -527,14 +528,15 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.silly('Built PUT request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    return this.getDB().putItem(request).then(function(data){
+    this.getDB().putItem(request).then(function(data){
         log.silly('PUT returned: ' + util.inspect(data, false, 5));
         self.emit('insert', [alias, obj, expected, returnOldValues]);
-        return obj;
+        return d.resolve(obj);
     }, function(err){
-        log.error('PUT: ' + err.message + '\n' + err.stack);
-        return err;
+        log.error('PUT: ' + err.message + (err.stack ? '\n' + err.stack : ''));
+        return d.reject(err);
     });
+    return d.promise;
 };
 
 // usage:
