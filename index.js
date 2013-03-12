@@ -735,6 +735,7 @@ Model.prototype.scan = function(alias){
 
 Model.prototype.runScan = function(alias, filter, opts){
     var self = this,
+        d = when.defer(),
         schema = this.schema(alias),
         req = {
             'TableName': schema.tableName,
@@ -764,18 +765,18 @@ Model.prototype.runScan = function(alias, filter, opts){
     Object.keys(filter).forEach(function(key){
         var f = new Scanner.Filter(schema, key, filter[key]);
         req.ScanFilter[key] = f.export();
-
     });
     log.silly('Built SCAN request: ' + util.inspect(req, false, 10));
 
     // Make the request
-    return this.getDB().scan(req).then(function(data){
+    this.getDB().scan(req).then(function(data){
         log.silly('SCAN returned: ' + util.inspect(data, false, 5));
-        return new Scanner.ScanResult(self, alias, data);
+        return d.resolve(new Scanner.ScanResult(self, alias, data, filter, opts));
     }, function(err){
         log.error('SCAN: ' + err.message);
-        return err;
+        return d.reject(err);
     });
+    return d.promise;
 };
 
 
