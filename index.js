@@ -530,7 +530,11 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     // Make the request
     this.getDB().putItem(request).then(function(data){
         log.silly('PUT returned: ' + util.inspect(data, false, 5));
-        self.emit('insert', [alias, obj, expected, returnOldValues]);
+        self.emit('insert', {
+            'alias': alias,
+            'expected': expected,
+            'data': obj
+        });
         return d.resolve(obj);
     }, function(err){
         log.error('PUT: ' + err.message + (err.stack ? '\n' + err.stack : ''));
@@ -617,7 +621,12 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     // Make the request
     this.getDB().updateItem(request).then(function(data){
         log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
-        self.emit('update', [alias, hash, attrs, opts]);
+        self.emit('update', {
+            'alias': alias,
+            'range': opts.range,
+            'updates': attrs,
+            'options': opts
+        });
         if (opts.returnValues !== undefined) {
             return d.resolve(schema.import(data.Attributes));
         }
