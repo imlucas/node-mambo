@@ -1,3 +1,11 @@
+## 0.0.20
+
+ * [aac02f6](https://github.com/exfm/node-mambo/commit/aac02f6): New version of plata - [imlucas](https://github.com/imlucas), Mon Mar 18 10:40:19 2013 -0400
+ * [d488427](https://github.com/exfm/node-mambo/commit/d488427): Just the beginnings of cloudsearch connector - [imlucas](https://github.com/imlucas), Wed Mar 13 16:49:46 2013 -0400
+ * [5d87648](https://github.com/exfm/node-mambo/commit/5d87648): Herokuk style, dynamo backed mutex - [imlucas](https://github.com/imlucas), Wed Mar 13 16:47:57 2013 -0400
+ * [8da4ed8](https://github.com/exfm/node-mambo/commit/8da4ed8): A set style queue - [imlucas](https://github.com/imlucas), Wed Mar 13 16:44:41 2013 -0400
+ * [321d393](https://github.com/exfm/node-mambo/commit/321d393): 0.0.19 - [imlucas](https://github.com/imlucas), Tue Mar 12 14:57:49 2013 -0400
+
 ## 0.0.19
 
  * [b2c8e8f](https://github.com/exfm/node-mambo/commit/b2c8e8f): Bump to 0.0.19 - [imlucas](https://github.com/imlucas), Tue Mar 12 14:57:22 2013 -0400

@@ -1,7 +1,7 @@
 "use strict";
 
 var aws = require("plata"),
-    when = require("when"),
+    Q = require("q"),
     sequence = require("sequence"),
     _ = require("underscore"),
     Query = require('./lib/query'),
@@ -14,12 +14,12 @@ var aws = require("plata"),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
     plog = require('plog'),
-    log = plog('mambo');
+    log = plog('mambo').level('silly');
 
 var instances = [];
 
 var emptyPromise = function(val){
-    var d = when.defer();
+    var d = Q.defer();
     d.resolve(val);
     return d.promise;
 };
@@ -67,7 +67,7 @@ Model.prototype.tableNameToAlias = function(name){
 // Fetch a query wrapper Django style.
 Model.prototype.objects = function(alias, hash, range){
     if(typeof range === 'object'){
-        var d = when.defer(),
+        var d = Q.defer(),
             key = Object.keys(range)[0],
             q = new Query(this, alias, hash);
         q.fetch().then(function(results){
@@ -162,8 +162,8 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
 // Create all tables as defined by this models schemas.
 Model.prototype.createAll = function(){
-    var d = when.defer();
-    when.all(Object.keys(this.schemasByAlias).map(this.ensureTableExists.bind(this)),
+    var d = Q.defer();
+    Q.all(Object.keys(this.schemasByAlias).map(this.ensureTableExists.bind(this)),
         d.resolve);
 
     return d.promise;
@@ -203,7 +203,7 @@ Model.prototype.ensureTableExists = function(alias){
 // - object. If empty, get all attributes.
 // - consistentRead: boolean
 Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
-    var d = when.defer(),
+    var d = Q.defer(),
         schema = this.schema(alias),
         request;
     log.debug('Get `'+alias+'` with hash `'+hash + ((range !== undefined) ? '` and range `'+range+'`': ''));
@@ -501,7 +501,7 @@ Model.prototype.batchWrite = function(puts, deletes){
 Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
     var self = this,
-        d = when.defer(),
+        d = Q.defer(),
         request,
         schema = this.schema(alias),
         clean = schema.export(obj);
@@ -564,7 +564,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
         ((opts.range !== undefined) ? ' and range `'+opts.range+'` ': ' ') +
         ' do => ' + util.inspect(attrs, false, 5));
 
-    var d = when.defer(),
+    var d = Q.defer(),
         self = this,
         response = [],
         schema = this.schema(alias),
@@ -750,7 +750,7 @@ Model.prototype.scan = function(alias){
 
 Model.prototype.runScan = function(alias, filter, opts){
     var self = this,
-        d = when.defer(),
+        d = Q.defer(),
         schema = this.schema(alias),
         req = {
             'TableName': schema.tableName,
@@ -766,7 +766,8 @@ Model.prototype.runScan = function(alias, filter, opts){
     }
 
     if(opts.count !== undefined && opts.fields !== undefined){
-        throw new Error('Can\'t specify count and fields in the same scan.');
+        console.log(opts.count, opts.fields);
+        console.error(new Error('Can\'t specify count and fields in the same scan.'));
     }
 
     if(opts.count !== undefined){
@@ -796,7 +797,7 @@ Model.prototype.runScan = function(alias, filter, opts){
 
 
 Model.prototype.waitForTableStatus = function(alias, status){
-    var d = when.defer(),
+    var d = Q.defer(),
         self = this,
         tableName = this.schema(alias).tableName;
 
@@ -893,7 +894,7 @@ Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch){
     }
     log.debug('Links: ' + util.inspect(schema.links));
 
-    return when.all(Object.keys(schema.links).map(function(linkAlias){
+    return Q.all(Object.keys(schema.links).map(function(linkAlias){
         log.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
 
         var linkKey = schema.links[linkAlias],
@@ -935,7 +936,7 @@ module.exports.connect = function(key, secret, prefix, region){
 };
 
 module.exports.createAll = function(){
-    return when.all(instances.map(function(instance){
+    return Q.all(instances.map(function(instance){
         return instance.createAll();
     }));
 };
@@ -957,16 +958,16 @@ module.exports.testing = function(opts){
 
         // Drop all tables for all instances and rebuild them.
         module.exports.recreateAll = function(){
-            return when.all(instances.map(function(instance){
-                return when.all(Object.keys(instance.schemasByAlias).map(function(alias){
+            return Q.all(instances.map(function(instance){
+                return Q.all(Object.keys(instance.schemasByAlias).map(function(alias){
                     return module.exports.recreateTable(instance, alias);
                 }));
             }));
         };
 
         module.exports.dropAll = function(){
-            return when.all(instances.map(function(instance){
-                return when.all(Object.keys(instance.schemasByAlias).map(function(alias){
+            return Q.all(instances.map(function(instance){
+                return Q.all(Object.keys(instance.schemasByAlias).map(function(alias){
                     return instance.deleteTable(alias);
                 }));
             }));
