@@ -25,5 +25,10 @@
   "optionalDependencies": {},
   "engines": {
     "node": "*"
-  }
+  },
+  "keywords": [
+    "amazon",
+    "aws",
+    "dynamodb"
+  ]
 }
