@@ -4,17 +4,6 @@ The best document mapper for DynamoDB.
 
 [![Build Status](https://secure.travis-ci.org/exfm/node-mambo.png)](http://travis-ci.org/exfm/node-mambo)
 
-## Install
-
-     npm install mambo
-
-## Testing
-
-    git clone
-    npm install
-    npm test
-
-
 ## Example
 
     var mambo = require('mambo'),
@@ -81,6 +70,17 @@ The best document mapper for DynamoDB.
     }, function(err){
         console.error('Couldn\'t accquire lock');
     });
+
+## Install
+
+     npm install mambo
+
+## Testing
+
+    git clone
+    npm install
+    npm test
+
 
 
 
