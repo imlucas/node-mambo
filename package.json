@@ -1,7 +1,7 @@
 {
   "author": "Lucas Hrabovsky <lucas@ex.fm>",
   "name": "mambo",
-  "description": "Little wrapper for dynamo models",
+  "description": "The best document mapper for DynamoDB.",
   "version": "0.0.21",
   "homepage": "http://github.com/exfm/node-mambo",
   "repository": {

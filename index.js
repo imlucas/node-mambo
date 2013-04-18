@@ -14,7 +14,7 @@ var aws = require("plata"),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
     plog = require('plog'),
-    log = plog('mambo').level('silly');
+    log = plog('mambo').level('error');
 
 var instances = [];
 
@@ -162,11 +162,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
 
 // Create all tables as defined by this models schemas.
 Model.prototype.createAll = function(){
-    var d = Q.defer();
-    Q.all(Object.keys(this.schemasByAlias).map(this.ensureTableExists.bind(this)),
-        d.resolve);
-
-    return d.promise;
+    return Q.all(Object.keys(this.schemasByAlias).map(this.ensureTableExists.bind(this)));
 };
 
 // Check if a table already exists.  If not, create it.
