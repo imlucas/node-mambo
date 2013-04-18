@@ -63,3 +63,24 @@ The best document mapper for DynamoDB.
     };
 
     module.exports = Comment;
+    
+    
+## Plugins
+
+### Distributed Locks
+
+[Mutex](https://github.com/exfm/node-mambo/blob/master/lib/mutex.js) provides a simple TTL lock like [ddbsync](https://github.com/ryandotsmith/ddbsync), as described in [Distributed Locking With DynamoDB](https://gist.github.com/ryandotsmith/c95fd21fab91b0823328)
+
+    var Mutex = require('mambo').Mutex,
+        mutex = new Mutex('some-name', 10);
+    mutex.lock().then(function(){
+        // Do some stuff
+        mutex.unlock().then(function(){
+            console.log('Unlocked.  Lock away.');
+        });
+    }, function(err){
+        console.error('Couldn\'t accquire lock');
+    });
+
+
+
