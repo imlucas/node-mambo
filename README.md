@@ -52,8 +52,8 @@ The best document mapper for DynamoDB.
     };
 
     module.exports = Comment;
-    
-    
+
+
 ## Plugins
 
 ### Distributed Locks
@@ -70,6 +70,31 @@ The best document mapper for DynamoDB.
     }, function(err){
         console.error('Couldn\'t accquire lock');
     });
+
+## Experimental
+
+### Sorted Sets
+
+Thanks to the new local secondary indexes, you can implement a sorted set
+in dynamo like you can with Redis.
+
+    var SortedSet = require('mambo').SortedSet,
+        d = new Date(),
+        songLoves = new SortedSet('loves-' + [
+            d.getYear(), d.getMonth(), d.getDay()].join('-'));
+
+    songLoves.incryby(1, 2).then(function(){
+       return songLoves.incryby(2, 1);
+    }).then(function(){
+        return songLoves.incryby(3, 9);
+    }).then(function(){
+        return songLoves.incryby(3, 1);
+    }).then(function(){
+        return songLoves.range(0, 3);
+    }).then(function(ids){
+        assert.deepEqual(ids, [3, 1, 2]);
+    });
+
 
 ## Install
 
