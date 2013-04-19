@@ -697,7 +697,10 @@ Model.prototype.query = function(alias, hash, opts){
             });
 
         });
-        request.IndexName = 'loves-index';
+    }
+
+    if(opts.index){
+        request.IndexName = opts.index;
     }
 
     // Add Limit
