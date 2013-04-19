@@ -639,12 +639,8 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
 //     'limit': 2,
 //     'consistentRead': true,
 //     'scanIndexForward': true,
-//     'rangeKeyCondition': {
-//         'attributeValueList': [{
-//             'attributeName': 'blhah',
-//             'attributeValue': 'some_value'
-//         }],
-//         'comparisonOperator': 'GT'
+//     'conditions': {
+//         'blah': {'GT': 'some_value'}
 //     },
 //     'exclusiveStartKey': {
 //         'hashName': 'some_hash',
@@ -674,12 +670,34 @@ Model.prototype.query = function(alias, hash, opts){
         filteredItem;
 
     // Add HashKeyValue
-    hashKey[schema.hashType] = hash.toString();
-    request.HashKeyValue = hashKey;
+    // @todo(lucas) Moved in conditions?
+    // hashKey[schema.hashType] = hash.toString();
+    // request.HashKeyValue = hashKey;
 
-    // Add RangeKeyCondition
-    if(opts.rangeKeyCondition !== undefined){
-        request.RangeKeyCondition = opts.rangeKeyCondition;
+    if(opts.conditions){
+        request.KeyConditions = {};
+        Object.keys(opts.conditions).forEach(function(key){
+            var field = schema.field(key),
+                op = Object.keys(opts.conditions[key])[0],
+                vals = opts.conditions[key][op];
+
+            if(!Array.isArray(vals)){
+                vals = [vals];
+            }
+
+            request.KeyConditions[key] = {
+                'AttributeValueList': [],
+                'ComparisonOperator': op
+            };
+            vals.forEach(function(val){
+                var i = {};
+                i[field.type] = field.export(val);
+                request.KeyConditions[key].AttributeValueList.push(i);
+
+            });
+
+        });
+        request.IndexName = 'loves-index';
     }
 
     // Add Limit
