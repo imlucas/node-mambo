@@ -246,44 +246,44 @@ describe('Model', function(){
     //         });
     // });
 
-    it("should update primary doc and all linked data in one call", function(done){
-        // require('plog').all().level('silly');
-        var now = Date.now();
+    // it("should update primary doc and all linked data in one call", function(done){
+    //     // require('plog').all().level('silly');
+    //     var now = Date.now();
 
-        Song.insert('song')
-            .set({'id': 3, 'title': 'Test'})
-            .commit()
-            .then(function(){
-                return Song.insert('loves')
-                    .set({
-                        'id': 3,
-                        'username': 'lucas',
-                        'created': now
-                    })
-                    .commit();
-            })
-            .then(function(){
-                return Song.objects('loves', 3).fetch();
-            })
-            .then(function(docs){
-                assert(docs.length === 1);
-            })
-            .then(function(){
-                return Song.updateHash('song', 3, 4, true);
-            })
-            .then(function(){
-                return Song.objects('loves', 3).fetch();
-            })
-            .then(function(docs){
-                assert(docs.length === 0);
-            })
-            .then(function(){
-                return Song.objects('loves', 4).fetch();
-            })
-            .then(function(docs){
-                assert(docs.length === 1);
-            }).then(function(){
-                done();
-            });
-    });
+    //     Song.insert('song')
+    //         .set({'id': 3, 'title': 'Test'})
+    //         .commit()
+    //         .then(function(){
+    //             return Song.insert('loves')
+    //                 .set({
+    //                     'id': 3,
+    //                     'username': 'lucas',
+    //                     'created': now
+    //                 })
+    //                 .commit();
+    //         })
+    //         .then(function(){
+    //             return Song.objects('loves', 3).fetch();
+    //         })
+    //         .then(function(docs){
+    //             assert(docs.length === 1);
+    //         })
+    //         .then(function(){
+    //             return Song.updateHash('song', 3, 4, true);
+    //         })
+    //         .then(function(){
+    //             return Song.objects('loves', 3).fetch();
+    //         })
+    //         .then(function(docs){
+    //             assert(docs.length === 0);
+    //         })
+    //         .then(function(){
+    //             return Song.objects('loves', 4).fetch();
+    //         })
+    //         .then(function(docs){
+    //             assert(docs.length === 1);
+    //         }).then(function(){
+    //             done();
+    //         });
+    // });
 });

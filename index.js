@@ -47,6 +47,10 @@ function Model(){
     }.bind(this));
 
     instances.push(this);
+
+    if(module.exports.lastConnection){
+        this.conect.apply(this, module.exports.lastConnection);
+    }
 }
 util.inherits(Model, EventEmitter);
 
@@ -945,8 +949,11 @@ Object.keys(fields).forEach(function(fieldName){
     module.exports[fieldName] = fields[fieldName];
 });
 module.exports.instances = instances;
+module.exports.lastConnection = null;
 
 module.exports.connect = function(key, secret, prefix, region){
+    module.exports.lastConnection = [key, secret, prefix, region];
+
     instances.forEach(function(instance){
         instance.connect(key, secret, prefix, region);
     });
