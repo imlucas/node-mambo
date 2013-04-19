@@ -657,7 +657,8 @@ Model.prototype.query = function(alias, hash, opts){
     var response = [],
         schema = this.schema(alias),
         request = {
-            'TableName': schema.tableName
+            'TableName': schema.tableName,
+            'KeyConditions': {}
         },
         obj,
         hashKey = {},
@@ -667,35 +668,34 @@ Model.prototype.query = function(alias, hash, opts){
         exclusiveStartKey = {},
         attr,
         dynamoType,
-        filteredItem;
+        filteredItem,
+        hashField = schema.field(schema.hash);
 
-    // Add HashKeyValue
-    // @todo(lucas) Moved in conditions?
-    // hashKey[schema.hashType] = hash.toString();
-    // request.HashKeyValue = hashKey;
+    function addKeyCondition(key, op, vals){
+        var field = schema.field(key);
+        if(!Array.isArray(vals)){
+            vals = [vals];
+        }
+
+        request.KeyConditions[key] = {
+            'AttributeValueList': [],
+            'ComparisonOperator': op
+        };
+        vals.forEach(function(val){
+            var i = {};
+            i[field.type] = field.export(val);
+            request.KeyConditions[key].AttributeValueList.push(i);
+        });
+    }
+
+    addKeyCondition(schema.hash, 'EQ', hash);
 
     if(opts.conditions){
-        request.KeyConditions = {};
         Object.keys(opts.conditions).forEach(function(key){
             var field = schema.field(key),
                 op = Object.keys(opts.conditions[key])[0],
                 vals = opts.conditions[key][op];
-
-            if(!Array.isArray(vals)){
-                vals = [vals];
-            }
-
-            request.KeyConditions[key] = {
-                'AttributeValueList': [],
-                'ComparisonOperator': op
-            };
-            vals.forEach(function(val){
-                var i = {};
-                i[field.type] = field.export(val);
-                request.KeyConditions[key].AttributeValueList.push(i);
-
-            });
-
+            addKeyCondition(key, op, vals);
         });
     }
 

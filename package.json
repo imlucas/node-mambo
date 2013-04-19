@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "mocha": "1.8.1",
-    "magneto": "0.1.6"
+    "magneto": "0.2.0"
   },
   "optionalDependencies": {},
   "engines": {
