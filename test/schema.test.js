@@ -10,7 +10,8 @@ var Schema = require('../lib/schema'),
     NumberSetField = fields.NumberSetField,
     JSONField = fields.JSONField,
     DateField = fields.DateField,
-    BooleanField = fields.BooleanField;
+    BooleanField = fields.BooleanField,
+    IndexField = fields.IndexField;
 
 describe('Schema', function(){
     it('should construct fields just using the classnames', function(){
@@ -125,6 +126,19 @@ describe('Schema', function(){
                     'timestamp': NumberField
                 });
             assert.deepEqual(schema.links, {'loves': 'song_id'});
+        });
+    });
+
+    describe("Index Fields", function(){
+        it("should allow declaring index fields", function(){
+            var schema = new Schema('Song', 'song', 'id', {
+                'id': NumberField,
+                'title': StringField,
+                'loves': NumberField,
+                'loves-index': new IndexField('loves').project(['title'])
+            });
+            assert.equal(Object.keys(schema.indexes).length, 1, "Should have 1 index");
+
         });
     });
 });
