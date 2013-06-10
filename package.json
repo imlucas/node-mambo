@@ -3,10 +3,10 @@
   "name": "mambo",
   "description": "The best document mapper for DynamoDB.",
   "version": "0.0.22",
-  "homepage": "http://github.com/exfm/node-mambo",
+  "homepage": "http://github.com/imlucas/node-mambo",
   "repository": {
     "type": "git",
-    "url": "git://github.com/exfm/node-mambo.git"
+    "url": "git://github.com/imlucas/node-mambo.git"
   },
   "scripts": {
     "test": "MAMBO_BACKEND=magneto ./node_modules/.bin/mocha"
