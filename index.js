@@ -1,6 +1,7 @@
 "use strict";
 
 var aws = require("aws-sdk"),
+    async = require('async'),
     Q = require("q"),
     _ = require("underscore"),
     Query = require('./lib/query'),
@@ -16,12 +17,6 @@ var aws = require("aws-sdk"),
     log = plog('mambo').level('error');
 
 var instances = [];
-
-var emptyPromise = function(val){
-    var d = Q.defer();
-    d.resolve(val);
-    return d.promise;
-};
 
 // Models have many tables.
 function Model(){
@@ -68,19 +63,19 @@ Model.prototype.tableNameToAlias = function(name){
 };
 
 // Fetch a query wrapper Django style.
-Model.prototype.objects = function(alias, hash, range){
+Model.prototype.objects = function(alias, hash, range, done){
     if(typeof range === 'object'){
-        var d = Q.defer(),
-            key = Object.keys(range)[0],
+        var key = Object.keys(range)[0],
             q = new Query(this, alias, hash);
-        q.fetch().then(function(results){
-            d.resolve(results.filter(function(res){
+
+        q.fetch(function(err, results){
+            if(err){
+                return done(err);
+            }
+            done(null, results.filter(function(res){
                 return res[key] === range[key];
             })[0]);
-        }, function(){
-            throw new Error();
         });
-        return d.promise;
 
     }
     else{
@@ -164,31 +159,43 @@ Model.prototype.connect = function(key, secret, prefix, region){
 };
 
 // Create all tables as defined by this models schemas.
-Model.prototype.createAll = function(){
-    return Q.all(Object.keys(this.schemasByAlias).map(this.ensureTableExists.bind(this)));
+Model.prototype.createAll = function(done){
+    var self = this;
+    async.parallel(Object.keys(this.schemasByAlias).map(function(alias){
+        return function(callback){
+            self.ensureTableExists(alias, callback);
+        };
+    }), done);
 };
 
 // Check if a table already exists.  If not, create it.
-Model.prototype.ensureTableExists = function(alias){
+Model.prototype.ensureTableExists = function(alias, done){
     var self = this;
     log.silly('Making sure table `' + alias + '` exists');
-    return this.getDB().listTables().then(function(data){
+
+    this.getDB().listTables(function(err, data){
+        if(err){
+            return done(err);
+        }
+
         if(data.TableNames.indexOf(self.schema(alias).tableName) !== -1){
             log.silly('Table already exists ' + alias);
-            return false;
+            return done(null);
         }
-        var schema = self.schema(alias);
+
         log.silly('Table doesnt exist.  Creating...');
-        var req = {
-            'TableName': schema.tableName,
-            'KeySchema': schema.schema,
-            'ProvisionedThroughput':{
-                'ReadCapacityUnits':5,
-                'WriteCapacityUnits':10
-            }
-        };
+
+        var schema = self.schema(alias),
+            req = {
+                'TableName': schema.tableName,
+                'KeySchema': schema.schema,
+                'ProvisionedThroughput':{
+                    'ReadCapacityUnits':5,
+                    'WriteCapacityUnits':10
+                }
+            };
         log.silly('Calling to create ' + JSON.stringify(req));
-        return self.db.createTable(req);
+        self.db.createTable(req, done);
     });
 };
 
@@ -201,11 +208,12 @@ Model.prototype.ensureTableExists = function(alias){
 // - attributesToGet: An array of names of attributes to return in each
 // - object. If empty, get all attributes.
 // - consistentRead: boolean
-Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRead){
-    var d = Q.defer(),
-        schema = this.schema(alias),
+Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
+    var schema = this.schema(alias),
         request;
-    log.debug('Get `'+alias+'` with hash `'+hash + ((range !== undefined) ? '` and range `'+range+'`': ''));
+
+    log.debug('Get `'+alias+'` with hash `'+hash +
+        ((range !== undefined) ? '` and range `'+range+'`': ''));
 
     // Assemble the request data
     request = {
@@ -213,26 +221,26 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
         'Key': schema.exportKey(hash, range)
     };
 
-    if(attributesToGet && attributesToGet.length > 0){
-        request.AttributesToGet = attributesToGet;
+    if(attrs && attrs.length > 0){
+        request.AttributesToGet = attrs;
     }
 
-    if(consistentRead){
-        request.ConsistentRead = consistentRead;
+    if(consistent){
+        request.ConsistentRead = consistent;
     }
 
     log.silly('Built GET_ITEM request: ' + util.inspect(request, false, 5));
 
-    this.getDB().getItem(request).then(function(data){
+    this.getDB().getItem(request, function(err, data){
+        if(err){
+            log.error('GET_ITEM: ' + err.message + '\n' + err.stack);
+            return done(err);
+        }
         log.silly('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
-        return d.resolve((data.Item !== undefined) ?
+        return done(null, (data.Item !== undefined) ?
                 this.schema(alias).import(data.Item) : null);
-    }.bind(this), function(err){
-        log.error('GET_ITEM: ' + err.message + '\n' + err.stack);
-        return d.reject(err);
     });
 
-    return d.promise;
 };
 
 // Lowlevel delete item wrapper
@@ -246,7 +254,7 @@ Model.prototype.get = function(alias, hash, range, attributesToGet, consistentRe
 //            }],
 //          'returnValues':  'NONE'
 //        })
-Model.prototype.delete = function(alias, hash, opts){
+Model.prototype.delete = function(alias, hash, opts, done){
     opts = opts || {};
 
     log.debug('Delete `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
@@ -278,13 +286,15 @@ Model.prototype.delete = function(alias, hash, opts){
     log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
-    return this.getDB().deleteItem(request).then(function(data){
+    this.getDB().deleteItem(request, function(err, data){
+        if(err){
+            log.error('DELETE_ITEM: ' + err.message + '\n' + err.stack);
+            return done(err);
+        }
+
         log.silly('DELETE_ITEM returned: ' + util.inspect(data, false, 5));
         self.emit('delete', [alias, hash, opts.range]);
-        return data;
-    }.bind(this), function(err){
-        log.error('DELETE_ITEM: ' + err.message + '\n' + err.stack);
-        return err;
+        done(null, data);
     });
 };
 
@@ -902,7 +912,7 @@ Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks){
     return exec();
 };
 
-Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch){
+Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch, done){
     var self = this,
         schema = self.schema(alias),
         batch = self.batch();
@@ -910,7 +920,7 @@ Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch){
     log.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
     if(Object.keys(schema.links).length === 0){
         log.warn('No links for `'+alias+'`.  Did you mean to call this?');
-        return emptyPromise();
+        return done();
     }
     log.debug('Links: ' + util.inspect(schema.links));
 
@@ -936,7 +946,7 @@ Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch){
     }))
     .then(function(){
         if(returnBatch){
-            return batch;
+            return done(null, batch);
         }
         return batch.commit();
     });
