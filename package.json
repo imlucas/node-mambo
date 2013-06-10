@@ -16,7 +16,8 @@
     "plata": "0.0.34",
     "sequence": "2.2.1",
     "underscore": "1.3.3",
-    "plog": "0.0.4"
+    "plog": "0.0.4",
+    "aws-sdk": "1.2.0"
   },
   "devDependencies": {
     "mocha": "1.8.1",
