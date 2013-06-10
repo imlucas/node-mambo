@@ -2,7 +2,6 @@
 
 var aws = require("plata"),
     Q = require("q"),
-    sequence = require("sequence"),
     _ = require("underscore"),
     Query = require('./lib/query'),
     UpdateQuery = require('./lib/update-query'),
