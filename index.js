@@ -1,6 +1,6 @@
 "use strict";
 
-var aws = require("plata"),
+var aws = require("aws-sdk"),
     Q = require("q"),
     _ = require("underscore"),
     Query = require('./lib/query'),
