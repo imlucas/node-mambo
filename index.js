@@ -347,7 +347,7 @@ var sortObjects = function(objects, values, property){
 //         'ranges': [1350490700640, 1350490700650]
 //     },
 // ]
-Model.prototype.batchGet = function(req){
+Model.prototype.batchGet = function(req, done){
     log.debug('Batch get ' + util.inspect(req, false, 5));
     var request = {
             'RequestItems': {}
@@ -375,7 +375,12 @@ Model.prototype.batchGet = function(req){
     log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
-    return this.getDB().batchGetItem(request).then(function(data){
+    this.getDB().batchGetItem(request, function(err, data){
+        if(err){
+            log.error('BATCH_GET: ' + err.message + '\n' + err.stack);
+            return done(err);
+        }
+
         log.silly('BATCH_GET returned: ' + util.inspect(data, false, 5));
 
         // translate the response from dynamo format to exfm format
@@ -383,19 +388,14 @@ Model.prototype.batchGet = function(req){
             var schema = this.schema(tableData.alias),
                 items = data.Responses[schema.tableName].Items;
 
-            results[tableData.alias] = items.map(function(dynamoObj){
-                return schema.import(dynamoObj);
-            }.bind(this));
+            results[tableData.alias] = items.map(schema.import);
 
             // Sort the results
             results[tableData.alias] = sortObjects(results[tableData.alias],
                 tableData.hashes, schema.hash);
 
-        }.bind(this));
-        return results;
-    }.bind(this), function(err){
-        log.error('BATCH_GET: ' + err.message + '\n' + err.stack);
-        return err;
+        });
+        done(null, results);
     });
 };
 
@@ -419,7 +419,7 @@ Model.prototype.batchGet = function(req){
 //         ]
 //     }
 // );
-Model.prototype.batchWrite = function(puts, deletes){
+Model.prototype.batchWrite = function(puts, deletes, done){
     log.debug('Batch write: puts`'+util.inspect(puts, false, 10)+'`, deletes`'+util.inspect(deletes, false, 10)+'` ');
     var self = this,
         req = {
@@ -441,7 +441,7 @@ Model.prototype.batchWrite = function(puts, deletes){
             });
             totalOps++;
         });
-    }.bind(this));
+    });
 
     Object.keys(deletes).forEach(function(alias){
         var schema = this.schema(alias);
@@ -466,16 +466,17 @@ Model.prototype.batchWrite = function(puts, deletes){
     }
 
     log.silly('Built BATCH_WRITE request: ' + util.inspect(req, false, 10));
-    return this.getDB().batchWriteItem(req).then(function(data){
+    this.getDB().batchWriteItem(req, function(err, data){
+        if(err){
+            log.error('BATCH_WRITE: ' + err.message + '\n' + err.stack);
+            return done(err);
+        }
         log.silly('BATCH_WRITE returned: ' + util.inspect(data, false, 5));
         var success = {};
         Object.keys(data.Responses).forEach(function(tableName){
             success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
         });
-        return {'success': success,'unprocessed': data.UnprocessedItems};
-    }, function(err){
-        log.error('BATCH_WRITE: ' + err.message + '\n' + err.stack);
-        return err;
+        done(null, {'success': success,'unprocessed': data.UnprocessedItems});
     });
 };
 
@@ -507,10 +508,9 @@ Model.prototype.batchWrite = function(puts, deletes){
 //     'version': {'Value': 0, 'Exists': true}
 // }
 // returnValues: See AWS docs for an explanation.
-Model.prototype.put = function(alias, obj, expected, returnOldValues){
+Model.prototype.put = function(alias, obj, expected, returnOldValues, done){
     log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
     var self = this,
-        d = Q.defer(),
         request,
         schema = this.schema(alias),
         clean = schema.export(obj);
@@ -527,7 +527,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
                 request.Expected[key].Value = {};
                 request.Expected[key].Value[field.type] = field.export(expected[key].Value);
             }
-        }.bind(this));
+        });
     }
 
     if(returnOldValues === true){
@@ -537,19 +537,19 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
     log.silly('Built PUT request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    this.getDB().putItem(request).then(function(data){
+    this.getDB().putItem(request, function(err, data){
+        if(err){
+            log.error('PUT: ' + err.message + (err.stack ? '\n' + err.stack : ''));
+            return done(err);
+        }
         log.silly('PUT returned: ' + util.inspect(data, false, 5));
         self.emit('insert', {
             'alias': alias,
             'expected': expected,
             'data': obj
         });
-        return d.resolve(obj);
-    }, function(err){
-        log.error('PUT: ' + err.message + (err.stack ? '\n' + err.stack : ''));
-        return d.reject(err);
+        done(null, obj);
     });
-    return d.promise;
 };
 
 // usage:
@@ -566,15 +566,14 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues){
 //        }],
 //      'returnValues':  'NONE'
 //    })
-Model.prototype.updateItem = function(alias, hash, attrs, opts){
+Model.prototype.updateItem = function(alias, hash, attrs, opts, done){
     opts = opts || {};
 
     log.debug('Update `'+alias+'` with hash `'+hash + '`' +
         ((opts.range !== undefined) ? ' and range `'+opts.range+'` ': ' ') +
         ' do => ' + util.inspect(attrs, false, 5));
 
-    var d = Q.defer(),
-        self = this,
+    var self = this,
         response = [],
         schema = this.schema(alias),
         request = {
@@ -628,7 +627,11 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
     log.silly('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    this.getDB().updateItem(request).then(function(data){
+    this.getDB().updateItem(request, function(err, data){
+        if(err){
+            log.error('UPDATE_ITEM: ' + err.message + ((err.stack) ? '\n' + err.stack: ''));
+            return done(err);
+        }
         log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
         self.emit('update', {
             'alias': alias,
@@ -637,14 +640,10 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
             'options': opts
         });
         if (opts.returnValues !== undefined) {
-            return d.resolve(schema.import(data.Attributes));
+            return done(null, schema.import(data.Attributes));
         }
-        d.resolve(data);
-    }, function(err){
-        log.error('UPDATE_ITEM: ' + err.message + ((err.stack) ? '\n' + err.stack: ''));
-        d.reject(err);
+        done(null, data);
     });
-    return d.promise;
 };
 
 // usage:
@@ -661,7 +660,7 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts){
 //     },
 //     'attributeToGet':  ['attribute']
 // })
-Model.prototype.query = function(alias, hash, opts){
+Model.prototype.query = function(alias, hash, opts, done){
     opts = opts || {};
 
     log.debug('Query `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
@@ -749,10 +748,14 @@ Model.prototype.query = function(alias, hash, opts){
     log.silly('Built QUERY request: ' + util.inspect(request, false, 10));
 
     // Make the request
-    return this.getDB().query(request).then(function(data){
+    this.getDB().query(request, function(err, data){
+        if(err){
+            log.error('QUERY: ' + err.message + '\n' + err.stack);
+            return done(err);
+        }
         log.silly('QUERY returned: ' + util.inspect(data, false, 5));
 
-        return data.Items.map(function(item){
+        done(null, data.Items.map(function(item){
             // Cast the raw data from dynamo
             item = schema.import(item);
             if(opts.attributesToGet){
@@ -766,10 +769,7 @@ Model.prototype.query = function(alias, hash, opts){
                 item = filteredItem;
             }
             return item;
-        });
-    }, function(err){
-        log.error('QUERY: ' + err.message + '\n' + err.stack);
-        return err;
+        }));
     });
 };
 
@@ -778,9 +778,8 @@ Model.prototype.scan = function(alias){
 };
 
 
-Model.prototype.runScan = function(alias, filter, opts){
+Model.prototype.runScan = function(alias, filter, opts, done){
     var self = this,
-        d = Q.defer(),
         schema = this.schema(alias),
         req = {
             'TableName': schema.tableName,
@@ -815,36 +814,32 @@ Model.prototype.runScan = function(alias, filter, opts){
     log.silly('Built SCAN request: ' + util.inspect(req, false, 10));
 
     // Make the request
-    this.getDB().scan(req).then(function(data){
+    this.getDB().scan(req, function(err, data){
+        if(err){
+            log.error('SCAN: ' + err.message);
+            return done(err);
+        }
         log.silly('SCAN returned: ' + util.inspect(data, false, 5));
-        return d.resolve(new Scanner.ScanResult(self, alias, data, filter, opts));
-    }, function(err){
-        log.error('SCAN: ' + err.message);
-        return d.reject(err);
+        done(null, new Scanner.ScanResult(self, alias, data, filter, opts));
     });
-    return d.promise;
 };
 
 
-Model.prototype.waitForTableStatus = function(alias, status){
-    var d = Q.defer(),
-        self = this,
+Model.prototype.waitForTableStatus = function(alias, status, done){
+    var self = this,
         tableName = this.schema(alias).tableName;
 
     this.getDB().describeTable({'TableName': tableName}).then(function(data){
         if(status === 'DELETED' && !data){
-            return d.resolve(true);
+            return done(null, true);
         }
         if(data && data.Table.TableStatus === status){
-            return d.resolve(true);
+            return done(null, true);
         }
         setTimeout(function(){
-            self.waitForTableStatus(alias, status).then(function(_){
-                d.resolve(_);
-            });
+            self.waitForTableStatus(alias, status, done);
         }, 50);
     });
-    return d.promise;
 };
 
 Model.prototype.waitForTableDelete = function(alias){
@@ -855,19 +850,18 @@ Model.prototype.waitForTableCreation = function(alias){
     return this.waitForTableStatus(alias, 'ACTIVE');
 };
 
-Model.prototype.deleteTable = function(alias){
+Model.prototype.deleteTable = function(alias, done){
     var self = this;
 
-    return this.getDB().deleteTable({
+    this.getDB().deleteTable({
         'TableName': this.schema(alias).tableName
-    })
-    .then(function(res){
+    }, function(err, res){
         self.emit('delete table', alias);
-        return res;
+        done(err, res);
     });
 };
 
-Model.prototype.createTable = function(alias, read, write){
+Model.prototype.createTable = function(alias, read, write, done){
     read = read || 10;
     write = write || 10;
 
@@ -881,13 +875,13 @@ Model.prototype.createTable = function(alias, read, write){
             'ReadCapacityUnits': read,
             'WriteCapacityUnits': write
         }
-    }).then(function(res){
+    }, function(err, res){
         self.emit('create table', alias, read, write);
-        return res;
+        done(err, res);
     });
 };
 
-Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks){
+Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks, done){
     var self = this,
         schema = self.schema(alias);
 
@@ -895,19 +889,20 @@ Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks){
         if(!batch){
             batch = self.batch();
         }
-        return self.get(alias, oldHash).then(function(obj){
+        return self.get(alias, oldHash, function(err, obj){
             obj[schema.hash] = newHash;
-            return batch
-                .remove(alias, oldHash)
+            batch.remove(alias, oldHash)
                 .insert(alias, obj)
-                .commit()
-                .then(function(){
-                    return obj;
-                });
+                .commit(done);
         });
     }
     if(includeLinks){
-        return this.updateLinks(alias, oldHash, newHash, true).then(exec);
+        return this.updateLinks(alias, oldHash, newHash, true, function(err){
+            if(err){
+                return done(err);
+            }
+            exec();
+        });
     }
     return exec();
 };
@@ -968,10 +963,12 @@ module.exports.connect = function(key, secret, prefix, region){
     });
 };
 
-module.exports.createAll = function(){
-    return Q.all(instances.map(function(instance){
-        return instance.createAll();
-    }));
+module.exports.createAll = function(done){
+    async.parallel(instances.map(function(instance){
+        return function(callback){
+            instance.createAll(callback);
+        };
+    }), done);
 };
 
 var magneto = require('magneto');
