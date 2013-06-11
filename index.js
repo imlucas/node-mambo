@@ -108,10 +108,26 @@ Model.prototype.getDB = function(key, secret){
     if(!key || !secret){
         log.warn('Calling connect without key/secret?');
     }
-    aws.connect({'key': key, 'secret': secret});
-    this.db = aws.dynamo;
 
-    aws.dynamo.on('retry', function(req){
+
+    log.debug('Dynamo client created.');
+
+    if(process.env.MAMBO_BACKEND === "magneto"){
+        log.debug('Using magneto');
+        magneto.patchClient(aws, process.env.MAGNETO_PORT || 8081);
+        log.debug('Connected to magneto on ' +this.db.host+ ':' + this.db.port);
+    }
+    else {
+        if(!key || !secret){
+            log.warn('Calling connect without key/secret?');
+        }
+        else {
+            aws.config.update({'accessKeyId': key, 'secretAccessKey': secret});
+        }
+    }
+
+    this.db = aws.DynamoDB();
+    this.db.on('retry', function(req){
         self.emit('retry', req);
     })
     .on('successful retry', function(req){
