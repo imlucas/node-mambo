@@ -189,17 +189,7 @@ Model.prototype.ensureTableExists = function(alias, done){
 
         log.silly('Table doesnt exist.  Creating...');
 
-        var schema = self.schema(alias),
-            req = {
-                'TableName': schema.tableName,
-                'KeySchema': schema.schema,
-                'ProvisionedThroughput':{
-                    'ReadCapacityUnits':5,
-                    'WriteCapacityUnits':10
-                }
-            };
-        log.silly('Calling to create ' + JSON.stringify(req));
-        self.db.createTable(req, done);
+        self.createTable(alias, 10, 10, done);
     });
 };
 
@@ -213,7 +203,17 @@ Model.prototype.ensureTableExists = function(alias, done){
 // - object. If empty, get all attributes.
 // - consistentRead: boolean
 Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
+    if(!done){
+        var args = Array.prototype.slice.apply(arguments);
+        for(var i = 0; i < args.length; i++){
+            if(typeof args[i] === 'function'){
+                done = args[i];
+            }
+        }
+    }
+
     var schema = this.schema(alias),
+        self = this,
         request;
 
     log.debug('Get `'+alias+'` with hash `'+hash +
@@ -241,8 +241,9 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
             return done(err);
         }
         log.silly('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
-        return done(null, (data.Item !== undefined) ?
-                this.schema(alias).import(data.Item) : null);
+        done(null, {});
+        // return done(null, (data.Item !== undefined) ?
+        //         self.schema(alias).import(data.Item) : null);
     });
 
 };
@@ -874,7 +875,9 @@ Model.prototype.createTable = function(alias, read, write, done){
 
     return this.getDB().createTable({
         'TableName': schema.tableName,
+        'AttributeDefinitions': schema.getAttributeDefinitions(),
         'KeySchema': schema.getKeySchema(),
+        'LocalSecondaryIndexes': [],
         'ProvisionedThroughput': {
             'ReadCapacityUnits': read,
             'WriteCapacityUnits': write

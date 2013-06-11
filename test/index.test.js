@@ -65,9 +65,9 @@ describe('Model', function(){
             'no_ones': [
                 Date.now()
             ]
-        }).commit(function(){
-            Song.get('song', 1, function(s){
-                done();
+        }).commit(function(err){
+            Song.get('song', 1, function(err, s){
+                done(err);
             });
         });
     });
@@ -77,8 +77,8 @@ describe('Model', function(){
             'id': 1
         }).insert('song').set({
             'id': 2
-        }).commit(function(){
-            done();
+        }).commit(function(err){
+            done(err);
         });
     });
 
