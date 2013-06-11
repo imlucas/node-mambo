@@ -984,33 +984,40 @@ module.exports.testing = function(opts){
 
         process.env.MAMBO_BACKEND = 'magneto';
 
-        module.exports.recreateTable = function(instance, alias){
-            return instance.deleteTable(alias).then(function(){
-                return instance.createTable(alias);
+        module.exports.recreateTable = function(instance, alias, done){
+            instance.deleteTable(alias, function(){
+                instance.createTable(alias, done);
             });
         };
 
         // Drop all tables for all instances and rebuild them.
-        module.exports.recreateAll = function(){
-            return Q.all(instances.map(function(instance){
-                return Q.all(Object.keys(instance.schemasByAlias).map(function(alias){
-                    return module.exports.recreateTable(instance, alias);
-                }));
-            }));
+        module.exports.recreateAll = function(done){
+            var tasks = [];
+            instances.map(function(instance){
+                Object.keys(instance.schemasByAlias).map(function(alias){
+                    tasks.push(function(callback){
+                        module.exports.recreateTable(instance, alias, callback);
+                    });
+                });
+            });
+            async.parallel(tasks, done);
         };
 
-        module.exports.dropAll = function(){
-            return Q.all(instances.map(function(instance){
-                return Q.all(Object.keys(instance.schemasByAlias).map(function(alias){
-                    return instance.deleteTable(alias);
-                }));
-            }));
+        module.exports.dropAll = function(done){
+            var tasks = [];
+            instances.map(function(instance){
+                Object.keys(instance.schemasByAlias).map(function(alias){
+                    tasks.push(function(callback){
+                        instance.deleteTable(alias, callback);
+                    });
+                });
+            });
         };
 
         module.exports.testing.before = function(done){
             function onReady(){
                 log.debug('Recreating all tables for testing...');
-                module.exports.createAll().then(function(){
+                module.exports.createAll(function(){
                     if(done){
                         return done();
                     }
@@ -1027,7 +1034,7 @@ module.exports.testing = function(opts){
         };
 
         module.exports.testing.afterEach = function(done){
-            return module.exports.recreateAll().then(function(){
+            return module.exports.recreateAll(function(){
                 if(done){
                     return done();
                 }
@@ -1036,7 +1043,7 @@ module.exports.testing = function(opts){
         };
 
         module.exports.testing.after = function(done){
-            return module.exports.dropAll().then(function(){
+            return module.exports.dropAll(function(){
                 if(magneto.server){
                     log.debug('Stopping magneto');
                     magneto.server.close();
