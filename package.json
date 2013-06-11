@@ -14,7 +14,8 @@
   "dependencies": {
     "plog": "0.0.4",
     "aws-sdk": "1.2.0",
-    "async": "0.2.9"
+    "async": "0.2.9",
+    "underscore": "~1.4.4"
   },
   "devDependencies": {
     "mocha": "1.10.0",
