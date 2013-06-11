@@ -833,7 +833,7 @@ Model.prototype.waitForTableStatus = function(alias, status, done){
     var self = this,
         tableName = this.schema(alias).tableName;
 
-    this.getDB().describeTable({'TableName': tableName}).then(function(data){
+    this.getDB().describeTable({'TableName': tableName}, function(err, data){
         if(status === 'DELETED' && !data){
             return done(null, true);
         }
@@ -910,46 +910,46 @@ Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks, don
     }
     return exec();
 };
+// @todo (lucas) Need some serious de-promising.
+// Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch, done){
+//     var self = this,
+//         schema = self.schema(alias),
+//         batch = self.batch();
 
-Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch, done){
-    var self = this,
-        schema = self.schema(alias),
-        batch = self.batch();
+//     log.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
+//     if(Object.keys(schema.links).length === 0){
+//         log.warn('No links for `'+alias+'`.  Did you mean to call this?');
+//         return done();
+//     }
+//     log.debug('Links: ' + util.inspect(schema.links));
 
-    log.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
-    if(Object.keys(schema.links).length === 0){
-        log.warn('No links for `'+alias+'`.  Did you mean to call this?');
-        return done();
-    }
-    log.debug('Links: ' + util.inspect(schema.links));
+//     return Q.all(Object.keys(schema.links).map(function(linkAlias){
+//         log.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
 
-    return Q.all(Object.keys(schema.links).map(function(linkAlias){
-        log.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
+//         var linkKey = schema.links[linkAlias],
+//             rangeKey = Schema.get(linkAlias).range;
 
-        var linkKey = schema.links[linkAlias],
-            rangeKey = Schema.get(linkAlias).range;
-
-        return self.objects(linkAlias, oldHash).fetch().then(function(docs){
-            log.debug('Got ' + docs.length + ' links');
-            docs.map(function(doc){
-                doc[linkKey] = newHash;
-                if(rangeKey){
-                    batch.remove(linkAlias, oldHash, doc[rangeKey]);
-                }
-                else{
-                    batch.remove(linkAlias, oldHash);
-                }
-                batch.insert(linkAlias, doc);
-            });
-        });
-    }))
-    .then(function(){
-        if(returnBatch){
-            return done(null, batch);
-        }
-        return batch.commit();
-    });
-};
+//         return self.objects(linkAlias, oldHash).fetch(function(err, docs){
+//             log.debug('Got ' + docs.length + ' links');
+//             docs.map(function(doc){
+//                 doc[linkKey] = newHash;
+//                 if(rangeKey){
+//                     batch.remove(linkAlias, oldHash, doc[rangeKey]);
+//                 }
+//                 else{
+//                     batch.remove(linkAlias, oldHash);
+//                 }
+//                 batch.insert(linkAlias, doc);
+//             });
+//         });
+//     }))
+//     .then(function(){
+//         if(returnBatch){
+//             return done(null, batch);
+//         }
+//         return batch.commit();
+//     });
+// };
 
 module.exports.Model = Model;
 module.exports.Schema = Schema;
