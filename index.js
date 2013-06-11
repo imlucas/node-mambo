@@ -115,7 +115,7 @@ Model.prototype.getDB = function(key, secret){
     if(process.env.MAMBO_BACKEND === "magneto"){
         log.debug('Using magneto');
         magneto.patchClient(aws, process.env.MAGNETO_PORT || 8081);
-        log.debug('Connected to magneto on ' +this.db.host+ ':' + this.db.port);
+        log.debug('Connected to magneto on localhost:' + ( process.env.MAGNETO_PORT || 8081));
     }
     else {
         if(!key || !secret){
@@ -126,19 +126,19 @@ Model.prototype.getDB = function(key, secret){
         }
     }
 
-    this.db = aws.DynamoDB();
-    this.db.on('retry', function(req){
-        self.emit('retry', req);
-    })
-    .on('successful retry', function(req){
-        self.emit('successful retry', req);
-    })
-    .on('retries exhausted', function(req){
-        self.emit('retries exhausted', req);
-    })
-    .on('stat', function(data){
-        self.emit('stat', data);
-    });
+    this.db = new aws.DynamoDB();
+    // this.db.on('retry', function(req){
+    //     self.emit('retry', req);
+    // })
+    // .on('successful retry', function(req){
+    //     self.emit('successful retry', req);
+    // })
+    // .on('retries exhausted', function(req){
+    //     self.emit('retries exhausted', req);
+    // })
+    // .on('stat', function(data){
+    //     self.emit('stat', data);
+    // });
     return this.db;
 };
 
