@@ -35,7 +35,7 @@ describe('Model', function(){
     beforeEach(function(done){
         magneto.server = magneto.listen(8081, function(s){
             Song.connect();
-            Song.createAll().then(function(){
+            Song.createAll(function(){
                 done();
             });
 
@@ -65,8 +65,8 @@ describe('Model', function(){
             'no_ones': [
                 Date.now()
             ]
-        }).commit().then(function(){
-            Song.get('song', 1).then(function(s){
+        }).commit(function(){
+            Song.get('song', 1, function(s){
                 done();
             });
         });
@@ -77,7 +77,7 @@ describe('Model', function(){
             'id': 1
         }).insert('song').set({
             'id': 2
-        }).commit().then(function(){
+        }).commit(function(){
             done();
         });
     });
@@ -94,9 +94,9 @@ describe('Model', function(){
         assert.equal(q.numOps, 50);
         assert.equal(q.puts.song.length, 50);
 
-        q.commit().then(function(songs){
+        q.commit(function(err, songs){
             done();
-        }).done();
+        });
     });
 
     it('should handle batch inserts across tables', function(done){
@@ -109,10 +109,10 @@ describe('Model', function(){
         });
 
         assert.equal(q.lastAlias, 'loves');
-        q.commit().then(function(res){
+        q.commit(function(err, res){
             assert.equal(res.success.loves, 1);
             assert.equal(res.success.song, 1);
-            Song.objects('loves', 1).fetch().then(function(loves){
+            Song.objects('loves', 1).fetch(function(err, loves){
                 done();
             });
         });
