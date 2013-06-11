@@ -14,8 +14,6 @@ var mambo = require('../'),
     StringSetField = mambo.StringSetField,
     NumberSetField = mambo.NumberSetField;
 
-magneto.setLogLevel(50);
-
 var songSchema = new Schema('Song', 'song', 'id', {
     'id': NumberField,
     'title': StringField,
