@@ -110,6 +110,9 @@ describe('Model', function(){
 
         assert.equal(q.lastAlias, 'loves');
         q.commit(function(err, res){
+            if(err){
+                return done(err);
+            }
             assert.equal(res.success.loves, 1);
             assert.equal(res.success.song, 1);
             Song.objects('loves', 1).fetch(function(err, loves){
