@@ -2,7 +2,7 @@
 
 The best document mapper for DynamoDB.
 
-[![Build Status](https://secure.travis-ci.org/exfm/node-mambo.png)](http://travis-ci.org/exfm/node-mambo)
+[![Build Status](https://secure.travis-ci.org/imlucas/node-mambo.png)](http://travis-ci.org/imlucas/node-mambo)
 
 ## Example
 
