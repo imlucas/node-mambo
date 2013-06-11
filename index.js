@@ -241,9 +241,8 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
             return done(err);
         }
         log.silly('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
-        done(null, {});
-        // return done(null, (data.Item !== undefined) ?
-        //         self.schema(alias).import(data.Item) : null);
+        return done(null, (data.Item !== undefined) ?
+                self.schema(alias).import(data.Item) : null);
     });
 
 };
