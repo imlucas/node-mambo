@@ -14,10 +14,10 @@
   "dependencies": {
     "plog": "0.0.4",
     "aws-sdk": "1.2.0",
-    "async": "~0.2.9"
+    "async": "0.2.9"
   },
   "devDependencies": {
-    "mocha": "1.8.1",
+    "mocha": "1.10.0",
     "magneto": "0.3.0"
   },
   "optionalDependencies": {},
