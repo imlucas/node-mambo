@@ -432,7 +432,7 @@ Model.prototype.batchWrite = function(puts, deletes, done){
         totalOps = 0;
 
     Object.keys(puts).forEach(function(alias){
-        var schema = this.schema(alias);
+        var schema = self.schema(alias);
 
         if(!req.RequestItems.hasOwnProperty(schema.tableName)){
             req.RequestItems[schema.tableName] = [];
@@ -448,7 +448,7 @@ Model.prototype.batchWrite = function(puts, deletes, done){
     });
 
     Object.keys(deletes).forEach(function(alias){
-        var schema = this.schema(alias);
+        var schema = self.schema(alias);
 
         if(!req.RequestItems.hasOwnProperty(schema.tableName)){
             req.RequestItems[schema.tableName] = [];
