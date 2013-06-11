@@ -35,8 +35,8 @@ describe('Model', function(){
     beforeEach(function(done){
         magneto.server = magneto.listen(8081, function(s){
             Song.connect();
-            Song.createAll(function(){
-                done();
+            Song.createAll(function(err){
+                done(err);
             });
 
         });
