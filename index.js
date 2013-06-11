@@ -139,16 +139,6 @@ Model.prototype.getDB = function(key, secret){
     .on('stat', function(data){
         self.emit('stat', data);
     });
-
-    log.debug('Dynamo client created.');
-
-    if(process.env.MAMBO_BACKEND === "magneto"){
-        log.debug('Using magneto');
-        this.db.port = process.env.MAGNETO_PORT || 8081;
-        this.db.host = "localhost";
-        this.db.protocol = 'http';
-        log.debug('Connected to magneto on ' +this.db.host+ ':' + this.db.port);
-    }
     return this.db;
 };
 
