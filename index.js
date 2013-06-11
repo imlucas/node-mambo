@@ -2,8 +2,6 @@
 
 var aws = require("aws-sdk"),
     async = require('async'),
-    Q = require("q"),
-    _ = require("underscore"),
     Query = require('./lib/query'),
     UpdateQuery = require('./lib/update-query'),
     Batch = require('./lib/batch'),
