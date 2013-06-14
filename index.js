@@ -981,8 +981,8 @@ var magneto = require('magneto');
 
 module.exports.testing = function(opts){
     return function(){
+        var debug = require('debug')('mambo:testing');
         magneto.server = magneto.server || null;
-        // plog.find(/magneto*/).level('silly');
 
         process.env.MAMBO_BACKEND = 'magneto';
 
@@ -1014,11 +1014,12 @@ module.exports.testing = function(opts){
                     });
                 });
             });
+            async.parallel(tasks, done);
         };
 
         module.exports.testing.before = function(done){
             function onReady(){
-                log.debug('Recreating all tables for testing...');
+                debug('recreating all tables for testing...');
                 module.exports.createAll(function(){
                     if(done){
                         return done();
@@ -1029,7 +1030,7 @@ module.exports.testing = function(opts){
             if(magneto.server){
                 return onReady();
             }
-            log.debug('Starting magneto on port 8081...');
+            debug('starting magneto on port 8081...');
             magneto.server = magneto.listen(8081, function(){
                 onReady();
             });
@@ -1045,9 +1046,11 @@ module.exports.testing = function(opts){
         };
 
         module.exports.testing.after = function(done){
+            debug('calling drop all');
             return module.exports.dropAll(function(){
+                debug('all tables dropped');
                 if(magneto.server){
-                    log.debug('Stopping magneto');
+                    debug('stopping magneto');
                     magneto.server.close();
                     magneto.server = null;
                 }

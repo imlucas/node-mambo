@@ -16,7 +16,8 @@
     "aws-sdk": "1.2.0",
     "async": "0.2.9",
     "underscore": "1.4.4",
-    "magneto": "0.3.0"
+    "magneto": "0.3.0",
+    "debug": "~0.7.2"
   },
   "devDependencies": {
     "mocha": "1.10.0"
