@@ -11,6 +11,7 @@ var aws = require("aws-sdk"),
     Scanner = require('./lib/scan'),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
+    debug = require('debug')('mambo:model'),
     plog = require('plog'),
     log = plog('mambo').level('error');
 
@@ -856,10 +857,11 @@ Model.prototype.waitForTableCreation = function(alias){
 
 Model.prototype.deleteTable = function(alias, done){
     var self = this;
-
+    debug('delete table', alias);
     this.getDB().deleteTable({
         'TableName': this.schema(alias).tableName
     }, function(err, res){
+        debug('table deleted', alias);
         self.emit('delete table', alias);
         done(err, res);
     });
@@ -988,7 +990,7 @@ module.exports.testing = function(opts){
 
         module.exports.recreateTable = function(instance, alias, done){
             instance.deleteTable(alias, function(){
-                instance.createTable(alias, done);
+                instance.createTable(alias, 5, 5, done);
             });
         };
 
