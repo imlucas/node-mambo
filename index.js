@@ -111,16 +111,16 @@ Model.prototype.getDB = function(key, secret){
     }
 
 
-    log.debug('Dynamo client created.');
+    debug('Dynamo client created.');
 
     if(process.env.MAMBO_BACKEND === "magneto"){
-        log.debug('Using magneto');
+        debug('Using magneto');
         magneto.patchClient(aws, process.env.MAGNETO_PORT || 8081);
-        log.debug('Connected to magneto on localhost:' + ( process.env.MAGNETO_PORT || 8081));
+        debug('Connected to magneto on localhost:' + ( process.env.MAGNETO_PORT || 8081));
     }
     else {
         if(!key || !secret){
-            log.warn('Calling connect without key/secret?');
+            debug('Warning: Calling connect without key/secret?');
         }
         else {
             aws.config.update({'accessKeyId': key, 'secretAccessKey': secret});
@@ -166,6 +166,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
 // Create all tables as defined by this models schemas.
 Model.prototype.createAll = function(done){
     var self = this;
+    debug('createAll called', this.schemasByAlias);
     async.parallel(Object.keys(this.schemasByAlias).map(function(alias){
         return function(callback){
             self.ensureTableExists(alias, callback);
@@ -972,6 +973,7 @@ module.exports.connect = function(key, secret, prefix, region){
 };
 
 module.exports.createAll = function(done){
+    debug('create all instances', instances);
     async.parallel(instances.map(function(instance){
         return function(callback){
             instance.createAll(callback);
