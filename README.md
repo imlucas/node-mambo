@@ -14,7 +14,7 @@ The best document mapper for DynamoDB.
         DateField = mambo.DateField;
 
     var Comment = new mambo.Model(new Schema(
-            'Comments', ['post_id', 'created'],
+            'Comments', 'comments', ['post_id', 'created'],
             {
                 'post_id': NumberField,
                 'created': DateField,
@@ -22,7 +22,7 @@ The best document mapper for DynamoDB.
                 'author': StringField,
                 'liked_by': JSONField
             }
-        ), new Schema('Users', 'username', {
+        ), new Schema('Users', 'users', 'username', {
             'username': StringField,
             'name': StringField,
             'lastCommentPosted': DateField
