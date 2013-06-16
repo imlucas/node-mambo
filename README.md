@@ -32,21 +32,20 @@ The best document mapper for DynamoDB.
     Comment.getAll = function(postId){
         this.objects('comments', postId)
             .limit(5)
-            .fetch().then(function(comments){
+            .fetch(function(err, comments){
                 console.log('Comments for post ' + postId + ':\n'); console.log(JSON.stringify(comments, null, 4));
             });
     };
 
     Comment.post = function(postId, author, comment){
-        this.insert('comments',
-            {
-                'post_id': postId,
-                'created': new Date(),
-                'author': author,
-                'comment': comment,
-                'liked_by': []
-            })
-            .commit().then(function(){
+        this.insert('comments', {
+            'post_id': postId,
+            'created': new Date(),
+            'author': author,
+            'comment': comment,
+            'liked_by': []
+        })
+        .commit(function(err, res){
             console.log('Comment added!');
         });
     };
@@ -62,13 +61,12 @@ The best document mapper for DynamoDB.
 
     var Mutex = require('mambo').Mutex,
         mutex = new Mutex('some-name', 10);
-    mutex.lock().then(function(){
+    mutex.lock(function(err){
+        if(err) return console.error('Couldn\'t accquire lock');
         // Do some stuff
-        mutex.unlock().then(function(){
+        mutex.unlock(function(){
             console.log('Unlocked.  Lock away.');
         });
-    }, function(err){
-        console.error('Couldn\'t accquire lock');
     });
 
 ## Experimental
@@ -83,16 +81,16 @@ in dynamo like you can with Redis.
         songLoves = new SortedSet('loves-' + [
             d.getYear(), d.getMonth(), d.getDay()].join('-'));
 
-    songLoves.incryby(1, 2).then(function(){
-       return songLoves.incryby(2, 1);
-    }).then(function(){
-        return songLoves.incryby(3, 9);
-    }).then(function(){
-        return songLoves.incryby(3, 1);
-    }).then(function(){
-        return songLoves.range(0, 3);
-    }).then(function(ids){
-        assert.deepEqual(ids, [3, 1, 2]);
+    songLoves.incryby(1, 2, function(){
+        songLoves.incryby(2, 1, function(){
+            songLoves.incryby(3, 9, function(){
+                songLoves.incryby(3, 1, function(){
+                    songLoves.range(0, 3, function(err, ids){
+                        assert.deepEqual(ids, [3, 1, 2]);
+                    });
+                });
+            });
+        });
     });
 
 
