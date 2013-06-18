@@ -80,10 +80,14 @@ Model.prototype.objects = function(alias, hash, range, done){
     }
 };
 
+// @todo (lucas) Should be able to one line this:
+// Model.insert('user', data, function(err, res){});
 Model.prototype.insert = function(alias){
     return new Inserter(this, alias);
 };
 
+// @todo (lucas) Should be able to one line this:
+// Model.update('user', 1, {sets}, function(err, res){});
 Model.prototype.update = function(alias, hash, range){
     var q =  new UpdateQuery(this, alias, hash);
     if(range){
@@ -259,6 +263,7 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
 //            }],
 //          'returnValues':  'NONE'
 //        })
+// @todo (lucas) this should be more like Model.prototype.get
 Model.prototype.delete = function(alias, hash, opts, done){
     opts = opts || {};
 
@@ -352,6 +357,7 @@ var sortObjects = function(objects, values, property){
 //         'ranges': [1350490700640, 1350490700650]
 //     },
 // ]
+// @todo (lucas) This would be better if req was a map of `alias` to items.
 Model.prototype.batchGet = function(req, done){
     debug.debug('Batch get ' + util.inspect(req, false, 5));
     var request = {

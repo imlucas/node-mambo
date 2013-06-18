@@ -1,5 +1,7 @@
 # Mambo
 
+@todo (lucas) Add docco support to mott and include index.js docs.
+
 Mambo is a document mapper for Amazon's [DynamoDB](http://aws.amazon.com/dynamodb/), a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides
 
  * casting: Dynamo offers (number, string and binary fields), mambo provides higher level javascript types (Object, Array, Boolean, Date and many others).
