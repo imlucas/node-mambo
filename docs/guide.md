@@ -1,8 +1,8 @@
 # Mambo
 
-Mambo is a document mapper for Amazon's [DynamoDB](http://aws.amazon.com/dynamodb/), a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides 
+Mambo is a document mapper for Amazon's [DynamoDB](http://aws.amazon.com/dynamodb/), a fully managed document database.  Dynamo exposes a very spartan API because it is designed for consistent performance and very high scalability.  Mambo provides
 
- * casting: Dynamo offers (number, string and binary fields), mambo provides higher level javascript types (Object, Array, Boolean, Date and many others).  
+ * casting: Dynamo offers (number, string and binary fields), mambo provides higher level javascript types (Object, Array, Boolean, Date and many others).
  * fluent api: Chainable instances for Query's, Scan's, Update's and Insert's.
 
 ## Tutorial
@@ -58,7 +58,7 @@ Mambo provides a few others:
 Models expose a connect method:
 
     model.connect(key, secret, prefix, region)
-    
+
 As you would expect, to connect to dynamo you'll need to provide an AWS key and secret.  Connecting is synchronous and emits a `connect` event for extensibility.
 
 Prefix is a table name prefix for easily running multiple environments with the same table names.
@@ -79,8 +79,7 @@ Currently, each model connects indepently, but it is probably a good idea to add
     };
     model.insert('page')
         .set(info)
-        .commit()
-        .then(successHandler, errorHandler);
+        .commit(callback);
 
 You can also easily apply logic for conditional puts:
 
@@ -89,28 +88,26 @@ You can also easily apply logic for conditional puts:
         .shouldNotExist('id')  // All 3 expectations the same.
         .expect('id', false)
         .expect('id', false, null)
-        .commit()
-        .then(successHandler, errorHandler);
-        
+        .commit(callback);
+
 ### Updating Documents
 
 Mambo exposes an [`UpdateQuery`](https://github.com/exfm/node-mambo/blob/master/lib/update-query.js) instance to make updates fluent and batch-able.
 
     model.update('page', 'about')
         .set({
-            'content': 'These are some things about us.', 
+            'content': 'These are some things about us.',
             'date_modified': new Date()
         })
         .inc('update_count', 1)
         .returnNone()
-        .commit()
-        .then(successHandler, errorHandler);
+        .commit(callback);
 
 `UpdateQuery` exposes
 
  * `returnNone`, `returnAllOld`, `returnAllNew`, `returnUpdatedOld`, `returnUpdatedNew`: Control the ReturnValues for an update
  * `inc`, `dec`, `push`, `set`: Atomic update operators
- * `expect`: Specify conditional puts, just like `insert` 
+ * `expect`: Specify conditional puts, just like `insert`
 
 ### Querying Documents
 
@@ -120,20 +117,22 @@ Dynamo exposes three read operators: `Get`, `Query` and `Scan`.
 
 [`Get`](https://github.com/exfm/node-mambo/blob/master/index.js#L179) is for fetching a single document by hash key or hash AND range key.
 
-    model.get('page', 'about').then(function(doc){
+    model.get('page', 'about', function(err, doc){
+        if(err){
+            return console.error('Error fetching page: ' + err);
+        }
         console.log('Got page: ' + JSON.stringify(doc));
-    }, function(err){
-        console.error('Error fetching page: ' + err);
     });
 
 You can also specify attributes to fetch and whether the read should be consistent.
 
-    model.get('page', 'about', undefined, ['id'], true).then(function(doc){
+    model.get('page', 'about', undefined, ['id'], true, function(err, doc){
+        if(err){
+            return console.error('Error fetching page: ' + err);
+        }
         console.log('Got consistent doc that only has id: ' + JSON.stringify(doc));
-    }, function(err){
-        console.error('Error fetching page: ' + err);
     });
-    
+
 #### Query
 
 [`Query`](https://github.com/exfm/node-mambo/blob/master/index.js#L606) is one level up from get.  It's primary use is for fetching linked documents.  Say we wanted to add logs for page views.  Our hash key will be the page id and we'll choose the current time in ms for our range key.
@@ -143,23 +142,23 @@ You can also specify attributes to fetch and whether the read should be consiste
         'timestamp': DateField,
         'ip': StringField
     });
-    
+
     model.insert('log').set({
-        'id': 'about', 
+        'id': 'about',
         'timestamp': new Date(),
         'ip': '10.0.0.0'
     }).commit();
-    
+
     model.insert('log').set({
-        'id': 'about', 
+        'id': 'about',
         'timestamp': new Date(),
         'ip': '10.0.0.1'
     }).commit();
-    
+
 
 No if we wanted to get a list of all ip's that have viewed the about page:
 
-    model.query('log', 'about').then(function(docs){
+    model.query('log', 'about', function(err, docs){
         console.log('ips that viewed about: ' + docs.map(function(doc){
             return doc.ip;
         }));
@@ -210,7 +209,7 @@ And let's insert some fresh data.
         ip = ip[Math.floor(Math.random() * ip.length)];
         username = usernames[Math.floor(Math.random() * usernames.length)];
         model.insert('log').set({
-            'id': page, 
+            'id': page,
             'timestamp': startTime + 1,
             'ip': ip,
             'day': today,
@@ -218,7 +217,7 @@ And let's insert some fresh data.
             'state': 'NY'
         }).commit();
     }
-    
+
 So now we're inserted 100 new items, with 2 from our previous deploy.  Let's run a scan to get only those pageviews that were for user pages and the visitor was in NY.
 
     var now = new Date(),
@@ -242,7 +241,7 @@ So now we're inserted 100 new items, with 2 from our previous deploy.  Let's run
 
 ### Batch
 
-In our example above, we inserted 100 log items, which resulted in 100 API calls to dynamo.  But we can make things run even faster by using batch writes.  As you would expect, batch writes allow multiple writes per API call, up to 25 items.  This is really nice, but feels kind of clunky manually batching things up.  Instead, mambo splits your requests into batches of 25 automatically; looks like a single request, returns a single response.  
+In our example above, we inserted 100 log items, which resulted in 100 API calls to dynamo.  But we can make things run even faster by using batch writes.  As you would expect, batch writes allow multiple writes per API call, up to 25 items.  This is really nice, but feels kind of clunky manually batching things up.  Instead, mambo splits your requests into batches of 25 automatically; looks like a single request, returns a single response.
 
     var batch = model.batch();
 
@@ -251,7 +250,7 @@ In our example above, we inserted 100 log items, which resulted in 100 API calls
         ip = ip[Math.floor(Math.random() * ip.length)];
         username = usernames[Math.floor(Math.random() * usernames.length)];
         batch.insert('log', {
-            'id': page, 
+            'id': page,
             'timestamp': startTime + 1,
             'ip': ip,
             'day': today,
@@ -259,15 +258,15 @@ In our example above, we inserted 100 log items, which resulted in 100 API calls
             'state': 'NY'
         });
     }
-    batch.commit().then(successHandler, errorHandler);
-    
+    batch.commit(callback);
+
 @todo Batch Get
 
 @todo Batch Get and Write Multi Table
 
 ### Testing
 
-Testing your applications that use mambo is made extremely simple with [magneto](https://github.com/exfm/node-magneto), an in memory, mock dynamodb.  
+Testing your applications that use mambo is made extremely simple with [magneto](https://github.com/exfm/node-magneto), an in memory, mock dynamodb.
 Just specify `MAMBO_BACKEND=magneto` as an environment variable and mambo will use magneto's rest api instead of dynamo.
 
 Mambo also provides helpers for your tests. For example, with mocha
@@ -275,7 +274,7 @@ Mambo also provides helpers for your tests. For example, with mocha
     describe('my tests', function(){
         before(function(done){
             model.connect(null, null, 'Testing');
-            model.createAll().then(function(){
+            model.createAll(function(){
                 console.log('Tables created.  Test away.');
                 done();
             });
@@ -291,11 +290,11 @@ The emitted events are `retry`, `successful retry`, and `stat`.
         console.log('Mambo will retry the request `'+action+'` with data `'+data+'` because `'+err.message+'`');
         console.log('At this point, you could make a call to "autoscale" your throughput for `'+date.TableName+'`');
     });
-    
+
     model.on('retry successful', function(err, action, data){
         console.log('The retry of `'+action+'` with data `'+data+'` because `'+err.message+'` was successful.');
     });
-    
+
     model.on('stat', function(stat, action, data){
         console.log('The action `'+action+'` with data `'+data+'` used `'+stat.consumed+'` capacity units.');
     });
