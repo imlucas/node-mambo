@@ -281,6 +281,16 @@ Mambo also provides helpers for your tests. For example, with mocha
         });
         ... Your tests
 
+Mambo also provides a shorthand for all of this.
+
+    var mambo = require('mambo');
+    mambo.use(mambo.testing());
+    describe('my tests, function(){
+        before(mambo.testing.before);
+        after(mambo.testing.after);
+        afterEach(mambo.testing.afterEach);
+    }):
+
 ### Events
 
 Mambo relays all events from the [plata](https://github.com/exfm/node-plata) "driver" that you can do really interesting things with.
