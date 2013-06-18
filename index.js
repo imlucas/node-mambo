@@ -11,9 +11,7 @@ var aws = require("aws-sdk"),
     Scanner = require('./lib/scan'),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
-    debug = require('debug')('mambo:model'),
-    plog = require('plog'),
-    log = plog('mambo').level('error');
+    debug = require('plog')('mambo:model');
 
 var instances = [];
 
@@ -31,7 +29,7 @@ function Model(){
 
     this.tablesByName = {};
 
-    log.debug('Reading schemas...');
+    debug('Reading schemas...');
     this.schemas.forEach(function(schema){
         var tableName = (this.prefix || "") + schema.tableName;
         schema.tableName = tableName;
@@ -107,7 +105,7 @@ Model.prototype.getDB = function(key, secret){
 
     var self = this;
     if(!key || !secret){
-        log.warn('Calling connect without key/secret?');
+        debug.warn('Calling connect without key/secret?');
     }
 
 
@@ -144,7 +142,7 @@ Model.prototype.getDB = function(key, secret){
 };
 
 Model.prototype.connect = function(key, secret, prefix, region){
-    log.debug('Connecting...');
+    debug.debug('Connecting...');
     var self = this;
 
     key = key || process.env.AWS_ACCESS_KEY;
@@ -157,7 +155,7 @@ Model.prototype.connect = function(key, secret, prefix, region){
     this.getDB(key, secret);
 
     this.connected = true;
-    log.debug('Ready.  Emitting connect.');
+    debug.debug('Ready.  Emitting connect.');
 
     this.emit('connect');
     return this;
@@ -177,7 +175,7 @@ Model.prototype.createAll = function(done){
 // Check if a table already exists.  If not, create it.
 Model.prototype.ensureTableExists = function(alias, done){
     var self = this;
-    log.silly('Making sure table `' + alias + '` exists');
+    debug('Making sure table `' + alias + '` exists');
 
     this.getDB().listTables(function(err, data){
         if(err){
@@ -185,11 +183,11 @@ Model.prototype.ensureTableExists = function(alias, done){
         }
 
         if(data.TableNames.indexOf(self.schema(alias).tableName) !== -1){
-            log.silly('Table already exists ' + alias);
+            debug('Table already exists ' + alias);
             return done(null);
         }
 
-        log.silly('Table doesnt exist.  Creating...');
+        debug('Table doesnt exist.  Creating...');
 
         self.createTable(alias, 10, 10, done);
     });
@@ -218,7 +216,7 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
         self = this,
         request;
 
-    log.debug('Get `'+alias+'` with hash `'+hash +
+    debug.debug('Get `'+alias+'` with hash `'+hash +
         ((range !== undefined) ? '` and range `'+range+'`': ''));
 
     // Assemble the request data
@@ -235,14 +233,14 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
         request.ConsistentRead = consistent;
     }
 
-    log.silly('Built GET_ITEM request: ' + util.inspect(request, false, 5));
+    debug('Built GET_ITEM request: ' + util.inspect(request, false, 5));
 
     this.getDB().getItem(request, function(err, data){
         if(err){
-            log.error('GET_ITEM: ' + err.message + '\n' + err.stack);
+            debug.error('GET_ITEM: ' + err.message + '\n' + err.stack);
             return done(err);
         }
-        log.silly('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
+        debug('GET_ITEM returned: data: ' + util.inspect(data, false, 5));
         return done(null, (data.Item !== undefined) ?
                 self.schema(alias).import(data.Item) : null);
     });
@@ -263,7 +261,7 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
 Model.prototype.delete = function(alias, hash, opts, done){
     opts = opts || {};
 
-    log.debug('Delete `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
+    debug.debug('Delete `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
 
     var self = this,
         schema = this.schema(alias),
@@ -289,16 +287,16 @@ Model.prototype.delete = function(alias, hash, opts, done){
             request.Expected[attr.attributeName] = expectedAttribute;
         });
     }
-    log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
+    debug('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
     this.getDB().deleteItem(request, function(err, data){
         if(err){
-            log.error('DELETE_ITEM: ' + err.message + '\n' + err.stack);
+            debug.error('DELETE_ITEM: ' + err.message + '\n' + err.stack);
             return done(err);
         }
 
-        log.silly('DELETE_ITEM returned: ' + util.inspect(data, false, 5));
+        debug('DELETE_ITEM returned: ' + util.inspect(data, false, 5));
         self.emit('delete', [alias, hash, opts.range]);
         done(null, data);
     });
@@ -354,7 +352,7 @@ var sortObjects = function(objects, values, property){
 //     },
 // ]
 Model.prototype.batchGet = function(req, done){
-    log.debug('Batch get ' + util.inspect(req, false, 5));
+    debug.debug('Batch get ' + util.inspect(req, false, 5));
     var request = {
             'RequestItems': {}
         },
@@ -378,16 +376,16 @@ Model.prototype.batchGet = function(req, done){
         }
     }.bind(this));
 
-    log.silly('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
+    debug('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
     // Make the request
     this.getDB().batchGetItem(request, function(err, data){
         if(err){
-            log.error('BATCH_GET: ' + err.message + '\n' + err.stack);
+            debug.error('BATCH_GET: ' + err.message + '\n' + err.stack);
             return done(err);
         }
 
-        log.silly('BATCH_GET returned: ' + util.inspect(data, false, 5));
+        debug('BATCH_GET returned: ' + util.inspect(data, false, 5));
 
         // translate the response from dynamo format to exfm format
         req.forEach(function(tableData){
@@ -426,7 +424,7 @@ Model.prototype.batchGet = function(req, done){
 //     }
 // );
 Model.prototype.batchWrite = function(puts, deletes, done){
-    log.debug('Batch write: puts`'+util.inspect(puts, false, 10)+'`, deletes`'+util.inspect(deletes, false, 10)+'` ');
+    debug.debug('Batch write: puts`'+util.inspect(puts, false, 10)+'`, deletes`'+util.inspect(deletes, false, 10)+'` ');
     var self = this,
         req = {
             'RequestItems': {}
@@ -471,13 +469,13 @@ Model.prototype.batchWrite = function(puts, deletes, done){
         throw new Error(totalOps + ' is too many for one batch!');
     }
 
-    log.silly('Built BATCH_WRITE request: ' + util.inspect(req, false, 10));
+    debug('Built BATCH_WRITE request: ' + util.inspect(req, false, 10));
     this.getDB().batchWriteItem(req, function(err, data){
         if(err){
-            log.error('BATCH_WRITE: ' + err.message + '\n' + err.stack);
+            debug.error('BATCH_WRITE: ' + err.message + '\n' + err.stack);
             return done(err);
         }
-        log.silly('BATCH_WRITE returned: ' + util.inspect(data, false, 5));
+        debug('BATCH_WRITE returned: ' + util.inspect(data, false, 5));
         var success = {};
         Object.keys(data.Responses).forEach(function(tableName){
             success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
@@ -515,7 +513,7 @@ Model.prototype.batchWrite = function(puts, deletes, done){
 // }
 // returnValues: See AWS docs for an explanation.
 Model.prototype.put = function(alias, obj, expected, returnOldValues, done){
-    log.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
+    debug.debug('Put `'+alias+'` '+ util.inspect(obj, false, 10));
     var self = this,
         request,
         schema = this.schema(alias),
@@ -540,15 +538,15 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues, done){
         request.ReturnValues = "ALL_OLD";
     }
 
-    log.silly('Built PUT request: ' + util.inspect(request, false, 10));
+    debug('Built PUT request: ' + util.inspect(request, false, 10));
 
     // Make the request
     this.getDB().putItem(request, function(err, data){
         if(err){
-            log.error('PUT: ' + err.message + (err.stack ? '\n' + err.stack : ''));
+            debug.error('PUT: ' + err.message + (err.stack ? '\n' + err.stack : ''));
             return done(err);
         }
-        log.silly('PUT returned: ' + util.inspect(data, false, 5));
+        debug('PUT returned: ' + util.inspect(data, false, 5));
         self.emit('insert', {
             'alias': alias,
             'expected': expected,
@@ -575,7 +573,7 @@ Model.prototype.put = function(alias, obj, expected, returnOldValues, done){
 Model.prototype.updateItem = function(alias, hash, attrs, opts, done){
     opts = opts || {};
 
-    log.debug('Update `'+alias+'` with hash `'+hash + '`' +
+    debug.debug('Update `'+alias+'` with hash `'+hash + '`' +
         ((opts.range !== undefined) ? ' and range `'+opts.range+'` ': ' ') +
         ' do => ' + util.inspect(attrs, false, 5));
 
@@ -630,15 +628,15 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts, done){
         });
     }
 
-    log.silly('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
+    debug('Built UPDATE_ITEM request: ' + util.inspect(request, false, 10));
 
     // Make the request
     this.getDB().updateItem(request, function(err, data){
         if(err){
-            log.error('UPDATE_ITEM: ' + err.message + ((err.stack) ? '\n' + err.stack: ''));
+            debug.error('UPDATE_ITEM: ' + err.message + ((err.stack) ? '\n' + err.stack: ''));
             return done(err);
         }
-        log.silly('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
+        debug('UPDATE_ITEM returned: ' + util.inspect(data, false, 5));
         self.emit('update', {
             'alias': alias,
             'range': opts.range,
@@ -669,8 +667,8 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts, done){
 Model.prototype.query = function(alias, hash, opts, done){
     opts = opts || {};
 
-    log.debug('Query `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
-    log.silly('Query options: ' + util.inspect(opts, false, 5));
+    debug('Query `'+alias+'` with hash `'+hash+'` and range `'+opts.range+'`');
+    debug('Query options: ' + util.inspect(opts, false, 5));
 
     var response = [],
         schema = this.schema(alias),
@@ -751,15 +749,15 @@ Model.prototype.query = function(alias, hash, opts, done){
         request.AttributesToGet = opts.attributesToGet;
     }
 
-    log.silly('Built QUERY request: ' + util.inspect(request, false, 10));
+    debug('Built QUERY request: ' + util.inspect(request, false, 10));
 
     // Make the request
     this.getDB().query(request, function(err, data){
         if(err){
-            log.error('QUERY: ' + err.message + '\n' + err.stack);
+            debug.error('QUERY: ' + err.message + '\n' + err.stack);
             return done(err);
         }
-        log.silly('QUERY returned: ' + util.inspect(data, false, 5));
+        debug('QUERY returned: ' + util.inspect(data, false, 5));
 
         done(null, data.Items.map(function(item){
             // Cast the raw data from dynamo
@@ -817,15 +815,15 @@ Model.prototype.runScan = function(alias, filter, opts, done){
         var f = new Scanner.Filter(schema, key, filter[key]);
         req.ScanFilter[key] = f.export();
     });
-    log.silly('Built SCAN request: ' + util.inspect(req, false, 10));
+    debug('Built SCAN request: ' + util.inspect(req, false, 10));
 
     // Make the request
     this.getDB().scan(req, function(err, data){
         if(err){
-            log.error('SCAN: ' + err.message);
+            debug.error('SCAN: ' + err.message);
             return done(err);
         }
-        log.silly('SCAN returned: ' + util.inspect(data, false, 5));
+        debug('SCAN returned: ' + util.inspect(data, false, 5));
         done(null, new Scanner.ScanResult(self, alias, data, filter, opts));
     });
 };
@@ -921,21 +919,21 @@ Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks, don
 //         schema = self.schema(alias),
 //         batch = self.batch();
 
-//     log.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
+//     debug.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
 //     if(Object.keys(schema.links).length === 0){
-//         log.warn('No links for `'+alias+'`.  Did you mean to call this?');
+//         debug.warn('No links for `'+alias+'`.  Did you mean to call this?');
 //         return done();
 //     }
-//     log.debug('Links: ' + util.inspect(schema.links));
+//     debug.debug('Links: ' + util.inspect(schema.links));
 
 //     return Q.all(Object.keys(schema.links).map(function(linkAlias){
-//         log.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
+//         debug.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
 
 //         var linkKey = schema.links[linkAlias],
 //             rangeKey = Schema.get(linkAlias).range;
 
 //         return self.objects(linkAlias, oldHash).fetch(function(err, docs){
-//             log.debug('Got ' + docs.length + ' links');
+//             debug.debug('Got ' + docs.length + ' links');
 //             docs.map(function(doc){
 //                 doc[linkKey] = newHash;
 //                 if(rangeKey){
