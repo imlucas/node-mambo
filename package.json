@@ -9,7 +9,9 @@
     "url": "git://github.com/imlucas/node-mambo.git"
   },
   "scripts": {
-    "test": "MAMBO_BACKEND=magneto ./node_modules/.bin/mocha"
+    "test": "MAMBO_BACKEND=magneto ./node_modules/.bin/mocha",
+    "docs": "mott build",
+    "pushdocs": "mott deploy"
   },
   "dependencies": {
     "plog": "0.1.1",
@@ -29,5 +31,16 @@
     "amazon",
     "aws",
     "dynamodb"
-  ]
+  ],
+  "mott": {
+    "recipe": {
+      "build": "pages",
+      "deploy": ["build", "deploy to github"],
+      "metadata": {
+        "pages": {
+          "./docs/guide.md": "./index.html"
+        }
+      }
+    }
+  }
 }
