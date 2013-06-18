@@ -12,12 +12,11 @@
     "test": "MAMBO_BACKEND=magneto ./node_modules/.bin/mocha"
   },
   "dependencies": {
-    "plog": "0.0.4",
+    "plog": "0.1.1",
     "aws-sdk": "1.2.0",
     "async": "0.2.9",
     "underscore": "1.4.4",
-    "magneto": "0.3.0",
-    "debug": "~0.7.2"
+    "magneto": "0.3.0"
   },
   "devDependencies": {
     "mocha": "1.10.0"
