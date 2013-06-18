@@ -38,7 +38,7 @@
       "deploy": ["build", "deploy to github"],
       "metadata": {
         "pages": {
-          "./docs/guide.md": "./index.html"
+          "./docs/index.jade": "./index.html"
         }
       }
     }
