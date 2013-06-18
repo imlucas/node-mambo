@@ -126,6 +126,7 @@ Model.prototype.getDB = function(key, secret){
     }
 
     this.db = new aws.DynamoDB();
+    // @todo (lucas) these need reimplemented.
     // this.db.on('retry', function(req){
     //     self.emit('retry', req);
     // })

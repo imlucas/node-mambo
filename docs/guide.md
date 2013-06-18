@@ -285,6 +285,7 @@ Mambo also provides a shorthand for all of this.
 
     var mambo = require('mambo');
     mambo.use(mambo.testing());
+
     describe('my tests, function(){
         before(mambo.testing.before);
         after(mambo.testing.after);
