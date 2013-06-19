@@ -1011,7 +1011,7 @@ var magneto = require('magneto');
 
 module.exports.testing = function(opts){
     return function(){
-        var debug = require('debug')('mambo:testing');
+        var debug = require('plog')('mambo:testing');
         magneto.server = magneto.server || null;
 
         process.env.MAMBO_BACKEND = 'magneto';
