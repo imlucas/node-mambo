@@ -937,46 +937,50 @@ Model.prototype.updateHash = function(alias, oldHash, newHash, includeLinks, don
     }
     return exec();
 };
-// @todo (lucas) Need some serious de-promising.
-// Model.prototype.updateLinks = function (alias, oldHash, newHash, returnBatch, done){
-//     var self = this,
-//         schema = self.schema(alias),
-//         batch = self.batch();
 
-//     debug.debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
-//     if(Object.keys(schema.links).length === 0){
-//         debug.warn('No links for `'+alias+'`.  Did you mean to call this?');
-//         return done();
-//     }
-//     debug.debug('Links: ' + util.inspect(schema.links));
+Model.prototype.updateLinks = function (alias, oldHash, newHash, done){
+    var self = this,
+        schema = self.schema(alias),
+        batch = self.batch();
 
-//     return Q.all(Object.keys(schema.links).map(function(linkAlias){
-//         debug.debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
+    debug('Updating links for `'+alias+'` from `'+oldHash+'` to `'+newHash+'`');
+    if(Object.keys(schema.links).length === 0){
+        debug.warn('No links for `'+alias+'`.  Did you mean to call this?');
+        return done();
+    }
+    debug('Links: ' + util.inspect(schema.links));
 
-//         var linkKey = schema.links[linkAlias],
-//             rangeKey = Schema.get(linkAlias).range;
+    async.parallel(Object.keys(schema.links).map(function(linkAlias){
+        return function(callback){
+            debug('Getting all `'+alias+'` links to `'+linkAlias+'`');
+            var linkKey = schema.links[linkAlias],
+                rangeKey = Schema.get(linkAlias).range;
 
-//         return self.objects(linkAlias, oldHash).fetch(function(err, docs){
-//             debug.debug('Got ' + docs.length + ' links');
-//             docs.map(function(doc){
-//                 doc[linkKey] = newHash;
-//                 if(rangeKey){
-//                     batch.remove(linkAlias, oldHash, doc[rangeKey]);
-//                 }
-//                 else{
-//                     batch.remove(linkAlias, oldHash);
-//                 }
-//                 batch.insert(linkAlias, doc);
-//             });
-//         });
-//     }))
-//     .then(function(){
-//         if(returnBatch){
-//             return done(null, batch);
-//         }
-//         return batch.commit();
-//     });
-// };
+            self.objects(linkAlias, oldHash).fetch(function(err, docs){
+                if(err){
+                    return callback(err);
+                }
+                debug('Got ' + docs.length + ' links');
+                docs.map(function(doc){
+                    doc[linkKey] = newHash;
+                    if(rangeKey){
+                        batch.remove(linkAlias, oldHash, doc[rangeKey]);
+                    }
+                    else{
+                        batch.remove(linkAlias, oldHash);
+                    }
+                    batch.insert(linkAlias, doc);
+                });
+                callback();
+            });
+        };
+    }), function(err){
+        if(err){
+            return done(err);
+        }
+        batch.commit(done);
+    });
+};
 
 module.exports.Model = Model;
 module.exports.Schema = Schema;
