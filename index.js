@@ -80,18 +80,35 @@ Model.prototype.objects = function(alias, hash, range, done){
     }
 };
 
-// @todo (lucas) Should be able to one line this:
 // Model.insert('user', data, function(err, res){});
-Model.prototype.insert = function(alias){
-    return new Inserter(this, alias);
+Model.prototype.insert = function(alias, data, fn){
+    var i =  new Inserter(this, alias);
+    if(data){
+        i.set(data);
+    }
+    if(fn){
+        i.commit(fn);
+    }
+    return i;
 };
-
-// @todo (lucas) Should be able to one line this:
 // Model.update('user', 1, {sets}, function(err, res){});
-Model.prototype.update = function(alias, hash, range){
+Model.prototype.update = function(alias, hash, range, data, fn){
     var q =  new UpdateQuery(this, alias, hash);
+    if(typeof data === 'function'){
+        fn = data;
+        data = range;
+        range = undefined;
+    }
+
     if(range){
         q.range = range;
+    }
+    if(data){
+        q.set(data);
+    }
+
+    if(fn){
+        q.commit(fn);
     }
     return q;
 };
