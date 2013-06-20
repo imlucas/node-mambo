@@ -318,6 +318,13 @@ These are extremely useful for debugging and can be used for really interesting 
 
 @todo
 
+### Environment variables
+
+
+`MAMBO_BACKEND=magneto` use magneto as the backend instead of dynamo.  Good for testing and local dev.
+
+`MAGNETO_PORT=8081` set the port to run magneto on.
+
 ## Other Links
 
  * [Changelog](https://github.com/exfm/node-mambo/blob/master/CHANGELOG.md)
