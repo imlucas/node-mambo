@@ -11,6 +11,7 @@ var aws = require("aws-sdk"),
     Scanner = require('./lib/scan'),
     util = require('util'),
     EventEmitter = require('events').EventEmitter,
+    magneto = require('magneto'),
     debug = require('plog')('mambo:model');
 
 var instances = [];
@@ -1015,4 +1016,4 @@ module.exports.use = function(fn){
     fn();
 };
 
-module.exports.testing = require('./plugins/testing');
+module.exports.testing = require('./lib/plugins/testing');
