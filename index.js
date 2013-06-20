@@ -1012,8 +1012,11 @@ module.exports.createAll = function(done){
     }), done);
 };
 
+module.exports.testing = require('./lib/plugins/testing');
+
 module.exports.use = function(fn){
-    fn();
+    if(fn){
+        fn();
+    }
 };
 
-module.exports.testing = require('./lib/plugins/testing');
