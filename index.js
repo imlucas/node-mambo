@@ -891,6 +891,7 @@ Model.prototype.deleteTable = function(alias, done){
     });
 };
 
+// @todo (lucas) Needs to happen on a queue if we're not using magneto.
 Model.prototype.createTable = function(alias, read, write, done){
     read = read || 10;
     write = write || 10;
