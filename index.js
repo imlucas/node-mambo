@@ -211,7 +211,7 @@ Model.prototype.ensureTableExists = function(alias, done){
 
         debug('Table doesnt exist.  Creating...');
 
-        self.createTable(alias, 10, 10, done);
+        self.createTable(alias, 1, 1, done);
     });
 };
 
