@@ -895,18 +895,22 @@ Model.prototype.createTable = function(alias, read, write, done){
     write = write || 10;
 
     var schema = this.schema(alias),
-        self = this;
+        self = this,
+        params = {
+            'TableName': schema.tableName,
+            'AttributeDefinitions': schema.getAttributeDefinitions(),
+            'KeySchema': schema.getKeySchema(),
+            'LocalSecondaryIndexes': [],
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': read,
+                'WriteCapacityUnits': write
+            }
+        };
 
-    return this.getDB().createTable({
-        'TableName': schema.tableName,
-        'AttributeDefinitions': schema.getAttributeDefinitions(),
-        'KeySchema': schema.getKeySchema(),
-        'LocalSecondaryIndexes': [],
-        'ProvisionedThroughput': {
-            'ReadCapacityUnits': read,
-            'WriteCapacityUnits': write
-        }
-    }, function(err, res){
+    debug('creating table for alias `'+alias+'`', params);
+
+    this.getDB().createTable(params, function(err, res){
+        debug('create table for alias `'+alias+'` result', err, res);
         self.emit('create table', alias, read, write);
         done(err, res);
     });
