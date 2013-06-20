@@ -833,7 +833,7 @@ Model.prototype.runScan = function(alias, filter, opts, done){
     }
 
     if(opts.fields !== undefined){
-        req.AttributesToGet = opts.fields;
+        req.AttributesToGet =  opts.fields;
     }
 
     Object.keys(filter).forEach(function(key){
@@ -901,7 +901,7 @@ Model.prototype.createTable = function(alias, read, write, done){
             'TableName': schema.tableName,
             'AttributeDefinitions': schema.getAttributeDefinitions(),
             'KeySchema': schema.getKeySchema(),
-            'LocalSecondaryIndexes': [],
+            // 'LocalSecondaryIndexes': [],
             'ProvisionedThroughput': {
                 'ReadCapacityUnits': read,
                 'WriteCapacityUnits': write
