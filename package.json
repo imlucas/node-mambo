@@ -2,7 +2,7 @@
   "author": "Lucas Hrabovsky <lucas@ex.fm>",
   "name": "mambo",
   "description": "The best document mapper for DynamoDB.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "homepage": "http://github.com/imlucas/node-mambo",
   "repository": {
     "type": "git",
