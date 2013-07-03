@@ -383,13 +383,14 @@ Model.prototype.batchGet = function(req, done){
         },
         results = {},
         schema,
-        obj;
+        obj,
+        self = this;
 
     // Assemble the request data
     req.forEach(function(item){
         item.ranges = item.ranges || [];
 
-        schema = this.schema(item.alias);
+        schema = self.schema(item.alias);
         request.RequestItems[schema.tableName] = {'Keys': []};
         request.RequestItems[schema.tableName].Keys = item.hashes.map(function(hash, index){
             return schema.exportKey(hash, item.ranges[index]);
@@ -399,7 +400,7 @@ Model.prototype.batchGet = function(req, done){
         if(item.attributesToGet){
             request.RequestItems[schema.tableName].AttributesToGet = item.attributesToGet;
         }
-    }.bind(this));
+    });
 
     debug('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
 
@@ -414,10 +415,12 @@ Model.prototype.batchGet = function(req, done){
 
         // translate the response from dynamo format to exfm format
         req.forEach(function(tableData){
-            var schema = this.schema(tableData.alias),
+            var schema = self.schema(tableData.alias),
                 items = data.Responses[schema.tableName].Items;
 
-            results[tableData.alias] = items.map(schema.import);
+            results[tableData.alias] = items.map(function(item){
+                return schema.import(item);
+            });
 
             // Sort the results
             results[tableData.alias] = sortObjects(results[tableData.alias],
@@ -687,7 +690,8 @@ Model.prototype.updateItem = function(alias, hash, attrs, opts, done){
 //         'hashName': 'some_hash',
 //         'rangeName': 'some_range'
 //     },
-//     'attributeToGet':  ['attribute']
+//     'attributeToGet':  ['attribute'],
+//     'count': true
 // })
 Model.prototype.query = function(alias, hash, opts, done){
     opts = opts || {};
@@ -744,6 +748,10 @@ Model.prototype.query = function(alias, hash, opts, done){
         request.IndexName = opts.index;
     }
 
+    if(opts.count === true){
+        request.Select = 'COUNT';
+    }
+
     // Add Limit
     if(opts.limit !== undefined){
         request.Limit = Number(opts.limit);
@@ -798,7 +806,7 @@ Model.prototype.query = function(alias, hash, opts, done){
                 item = filteredItem;
             }
             return item;
-        }));
+        }), data.Count);
     });
 };
 
@@ -824,8 +832,8 @@ Model.prototype.runScan = function(alias, filter, opts, done){
     }
 
     if(opts.count !== undefined && opts.fields !== undefined){
-        console.log(opts.count, opts.fields);
-        console.error(new Error('Can\'t specify count and fields in the same scan.'));
+        debug(opts.count, opts.fields);
+        debug.error('Can\'t specify count and fields in the same scan.', opts.count, opts.fields);
     }
 
     if(opts.count !== undefined){
