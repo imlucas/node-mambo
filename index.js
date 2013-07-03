@@ -491,7 +491,7 @@ Model.prototype.batchWrite = function(puts, deletes, done){
             });
             totalOps++;
         });
-    }.bind(this));
+    });
 
     if(totalOps > 25){
         throw new Error(totalOps + ' is too many for one batch!');
@@ -500,10 +500,10 @@ Model.prototype.batchWrite = function(puts, deletes, done){
     debug('Built BATCH_WRITE request: ' + util.inspect(req, false, 10));
     this.getDB().batchWriteItem(req, function(err, data){
         if(err){
-            debug.error('BATCH_WRITE: ' + err.message + '\n' + err.stack);
+            debug.error('BATCH_WRITE: ', err);
             return done(err);
         }
-        debug('BATCH_WRITE returned: ' + util.inspect(data, false, 5));
+        debug('BATCH_WRITE returned: ', data);
         var success = {};
         Object.keys(data.Responses).forEach(function(tableName){
             success[self.tableNameToAlias(tableName)] = data.Responses[tableName].ConsumedCapacityUnits;
