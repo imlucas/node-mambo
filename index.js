@@ -416,7 +416,7 @@ Model.prototype.batchGet = function(req, done){
         // translate the response from dynamo format to exfm format
         req.forEach(function(tableData){
             var schema = self.schema(tableData.alias),
-                items = data.Responses[schema.tableName].Items;
+                items = data.Responses[schema.tableName].Items || data.Responses[schema.tableName];
 
             results[tableData.alias] = items.map(function(item){
                 return schema.import(item);
