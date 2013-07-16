@@ -32,11 +32,10 @@ function Model(){
 
     debug('Reading schemas...');
     this.schemas.forEach(function(schema){
-        var tableName = (this.prefix || "") + schema.tableName;
-        schema.tableName = tableName;
         this.schemasByAlias[schema.alias] = schema;
-        this.tablesByName[tableName] = schema;
     }.bind(this));
+
+    this.setTablePrefix(this.prefix || '');
 
     instances.push(this);
 
@@ -45,6 +44,17 @@ function Model(){
     }
 }
 util.inherits(Model, EventEmitter);
+
+Model.prototype.setTablePrefix = function(prefix){
+    this.prefix = prefix;
+    this.schemas.forEach(function(schema){
+        var oldTableName = schema.tableName;
+        delete this.tablesByName[oldTableName];
+        schema.tableName = (prefix || '') + schema.tableName;
+        this.tablesByName[schema.tableName] = schema;
+    }.bind(this));
+    return this;
+};
 
 // Grab a schema definition by alias.
 Model.prototype.schema = function(alias){
@@ -1010,6 +1020,15 @@ module.exports.connect = function(key, secret, prefix, region){
     instances.forEach(function(instance){
         instance.connect(key, secret, prefix, region);
     });
+};
+
+module.exports.setTablePrefix = function(prefix){
+    instances.forEach(function(instance){
+        instance.setTablePrefix(prefix);
+    });
+
+    // So any newly created models also get the prefix.
+    Model.prototype.prefix = prefix;
 };
 
 module.exports.createAll = function(done){
