@@ -11,7 +11,8 @@ var Schema = require('../lib/schema'),
     JSONField = fields.JSONField,
     DateField = fields.DateField,
     BooleanField = fields.BooleanField,
-    CsvField = fields.CsvField;
+    CsvField = fields.CsvField,
+    LongField = fields.LongField;
 
 describe('Fields', function(){
     describe('String', function(){
@@ -79,6 +80,21 @@ describe('Fields', function(){
             assert.deepEqual(new CsvField('tags').import('music,news'),
                 ['music', 'news']);
         });
+    });
 
+    describe("Long", function(){
+        it('should have the right default', function(){
+            assert.deepEqual(new LongField('id').defaultValue, '0');
+        });
+
+        it('should work with magic numbers', function(){
+            assert.deepEqual(new LongField('id').export('15811513159681281'),
+                '15811513159681281');
+        });
+
+        it('should work with magic numbers', function(){
+            assert.deepEqual(new LongField('id').import('15811513159681281'),
+                '15811513159681281');
+        });
     });
 });
