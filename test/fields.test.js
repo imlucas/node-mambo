@@ -10,7 +10,8 @@ var Schema = require('../lib/schema'),
     NumberSetField = fields.NumberSetField,
     JSONField = fields.JSONField,
     DateField = fields.DateField,
-    BooleanField = fields.BooleanField;
+    BooleanField = fields.BooleanField,
+    CsvField = fields.CsvField;
 
 describe('Fields', function(){
     describe('String', function(){
@@ -57,5 +58,27 @@ describe('Fields', function(){
             var d = new Date();
             assert.deepEqual(new DateField('active', true).defaultValue, true);
         });
+    });
+
+    describe("Csv", function(){
+        it('should have correct defaults', function(){
+            assert.deepEqual(new CsvField('tags').defaultValue, undefined);
+        });
+
+        it('should cast an array to a string for storage', function(){
+            assert.deepEqual(new CsvField('tags').export(['music', 'news']),
+                'music,news');
+        });
+
+        it('should cast a string to a string for storage', function(){
+            assert.deepEqual(new CsvField('tags').export('music,news'),
+                'music,news');
+        });
+
+        it('should cast a string to an array for use', function(){
+            assert.deepEqual(new CsvField('tags').import('music,news'),
+                ['music', 'news']);
+        });
+
     });
 });
