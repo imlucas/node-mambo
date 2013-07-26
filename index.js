@@ -412,7 +412,7 @@ Model.prototype.batchGet = function(req, done){
         }
     });
 
-    debug('Built DELETE_ITEM request: ' + util.inspect(request, false, 5));
+    debug('Built BATCH_GET request: ' + util.inspect(request, false, 5));
 
     // Make the request
     this.getDB().batchGetItem(request, function(err, data){
