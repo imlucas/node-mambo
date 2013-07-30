@@ -102,6 +102,7 @@ Model.prototype.insert = function(alias, data, fn){
     }
     return i;
 };
+
 // Model.update('user', 1, {sets}, function(err, res){});
 Model.prototype.update = function(alias, hash, range, data, fn){
     var q =  new UpdateQuery(this, alias, hash);
@@ -277,7 +278,19 @@ Model.prototype.get = function(alias, hash, range, attrs, consistent, done){
         return done(null, (data.Item !== undefined) ?
                 self.schema(alias).import(data.Item) : null);
     });
+};
 
+Model.prototype.remove = function(alias, hash, range, done){
+    var opts = {};
+    if(typeof range === 'function'){
+        done = range;
+        range = undefined;
+    }
+
+    if(range){
+        opts.range = range;
+    }
+    this.delete(alias, hash, opts, done);
 };
 
 // Lowlevel delete item wrapper
