@@ -2,6 +2,7 @@
 
 The best document mapper for DynamoDB.
 
+[![NPM](https://nodei.co/npm/levelmeup.png?downloads=true&stars=true)](https://nodei.co/npm/mambo/)
 [![Build Status](https://secure.travis-ci.org/imlucas/node-mambo.png)](http://travis-ci.org/imlucas/node-mambo)
 
 ## Example
