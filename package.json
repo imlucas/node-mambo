@@ -1,8 +1,8 @@
 {
-  "author": "Lucas Hrabovsky <lucas@ex.fm>",
+  "author": "Lucas Hrabovsky <hrabovsky.lucas@gmail.com>",
   "name": "mambo",
   "description": "The best document mapper for DynamoDB.",
-  "version": "0.2.14",
+  "version": "0.3.0",
   "homepage": "http://github.com/imlucas/node-mambo",
   "repository": {
     "type": "git",
@@ -14,28 +14,31 @@
     "pushdocs": "mott deploy"
   },
   "dependencies": {
-    "plog": "0.2.1",
-    "aws-sdk": "1.2.0",
-    "async": "0.2.9",
-    "underscore": "1.4.4",
-    "magneto": "0.3.3"
+    "magneto": "~0.4.0",
+    "underscore": "~1.5.2",
+    "async": "~0.2.9",
+    "aws-sdk": "~1.10.0"
   },
   "devDependencies": {
-    "mocha": "1.10.0"
+    "mocha": "~1.13.0"
   },
-  "optionalDependencies": {},
   "engines": {
     "node": "*"
   },
   "keywords": [
     "amazon",
     "aws",
-    "dynamodb"
+    "dynamodb",
+    "dynamo"
   ],
+  "license" : "MIT",
   "mott": {
     "recipe": {
       "build": "pages",
-      "deploy": ["build", "deploy to github"],
+      "deploy": [
+        "build",
+        "deploy to github"
+      ],
       "metadata": {
         "pages": {
           "./docs/index.jade": "./index.html"
