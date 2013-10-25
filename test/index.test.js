@@ -186,7 +186,6 @@ describe('Model', function(){
     });
 
     // it("should update hash via links", function(done){
-    //     // require('plog').all().level('silly');
     //     Song.insert('song')
     //         .set({'id': 5, 'title': 'Test'})
     //         .commit()
@@ -250,7 +249,6 @@ describe('Model', function(){
     // });
 
     // it("should update primary doc and all linked data in one call", function(done){
-    //     // require('plog').all().level('silly');
     //     var now = Date.now();
 
     //     Song.insert('song')
